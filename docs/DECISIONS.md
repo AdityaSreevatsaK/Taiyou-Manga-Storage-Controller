@@ -8,4 +8,6 @@
 - 2026-11-18: Full-media backup includes binaries, rights and metadata; catalogue backup must never be described as equivalent.
 - 2026-11-18: Mock revision fingerprints cover every validated page, chapter manifest, catalogue, inventory and rights declaration. Metadata modifications and missing records fail closed; no automatic metadata merge or rewrite. Existing local mocks created with the old digest format require a fresh disposable mock directory (not a production data migration).
 
+- 2026-11-18: Local identity registry updates are protected by an exclusive cross-process lock and an atomic temp-file replacement to avoid lost IDs and progress misalignment on concurrent imports. A failed publish may reserve unused IDs, which are safe to reuse on retry.
+
 Awaiting owner: exact source archive arrangement, stable series identity after moving files, private HF dataset name and creation, owner auth, source rights and quotas, cloud commit protocol, reader adapter, backup retention, automatic sync, deletion policy and live mutation gate. Proposed Manga Library ADR-006 is **not an approved architecture**.

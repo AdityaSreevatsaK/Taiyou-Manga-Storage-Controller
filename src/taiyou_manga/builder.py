@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import secrets
 import shutil
 import tempfile
 from collections import defaultdict
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +38,24 @@ def load_json(path: Path) -> Any:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise ControllerError(f"Cannot read valid JSON: {path.name}") from exc
+
+
+@contextmanager
+def _registry_lock(state_file: Path) -> Iterator[None]:
+    """Serialise identity updates across independent Windows/Linux processes."""
+    if state_file.is_symlink():
+        raise ControllerError("Identity registry cannot be a symlink")
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+    lock = state_file.with_name(state_file.name + ".lock")
+    try:
+        fd = os.open(lock, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError as exc:
+        raise ControllerError("Identity registry is locked; inspect a stale lock before retrying") from exc
+    try:
+        os.close(fd)
+        yield
+    finally:
+        lock.unlink(missing_ok=True)
 
 
 def _registry(state_file: Path) -> dict[str, str]:
@@ -219,12 +240,17 @@ def _build(
         write_json(stage / "inventory.json", inventory)
         if rights:
             write_json(stage / "rights.json", rights)
-        stage.rename(output)
+        # Publish IDs first. A failed registry write must never expose an untracked bundle.
         state_file.parent.mkdir(parents=True, exist_ok=True)
-        # Never replace an existing registry without an atomic file switch.
-        temp_registry = state_file.with_suffix(state_file.suffix + ".tmp")
-        write_json(temp_registry, registry)
-        temp_registry.replace(state_file)
+        fd, temporary_name = tempfile.mkstemp(prefix=".manga-ids-", suffix=".tmp", dir=state_file.parent)
+        os.close(fd)
+        temp_registry = Path(temporary_name)
+        try:
+            write_json(temp_registry, registry)
+            temp_registry.replace(state_file)
+        finally:
+            temp_registry.unlink(missing_ok=True)
+        stage.rename(output)
         return inventory
     finally:
         if stage.exists():
@@ -240,7 +266,9 @@ def build(
     rights_path: Path | None = None,
     limits: Limits = DEFAULT_LIMITS,
 ) -> dict[str, Any]:
-    return _build(source, output, state_file, title, direction, parse_rights(rights_path), limits)
+    rights = parse_rights(rights_path)
+    with _registry_lock(state_file):
+        return _build(source, output, state_file, title, direction, rights, limits)
 
 
 def _verify_bundle(bundle: Path, limits: Limits = DEFAULT_LIMITS) -> dict[str, Any]:
