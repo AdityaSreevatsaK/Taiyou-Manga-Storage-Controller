@@ -9,7 +9,7 @@ import stat
 import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
-from typing import BinaryIO
+from typing import IO
 
 from .builder import verify_bundle
 from .domain import ControllerError
@@ -19,7 +19,7 @@ MAX_BACKUP_BYTES = 5_000_000_000
 MAX_BACKUP_FILES = 20_000
 
 
-def _sha256(stream: BinaryIO) -> tuple[str, int]:
+def _sha256(stream: IO[bytes]) -> tuple[str, int]:
     digest = hashlib.sha256()
     count = 0
     while block := stream.read(1_048_576):
