@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "taiyou-manga-storage-controller"
+version = "0.1.0"
+description = "Offline-first and rights-aware manga storage integrity controller"
+requires-python = ">=3.11"
+dependencies = ["Pillow>=11.3,<13"]
+
+[project.optional-dependencies]
+huggingface = ["huggingface-hub>=0.35,<3"]
+dev = ["ruff>=0.9,<1", "mypy>=1.11,<2", "pip-audit>=2.7,<3"]
+
+[project.scripts]
+taiyou-manga = "taiyou_manga.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101"]
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["taiyou_manga"]
+warn_unused_ignores = true
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
