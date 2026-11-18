@@ -100,7 +100,11 @@ class MockStorage:
         if not path.exists():
             return None
         data = load_json(path)
-        if not isinstance(data, dict) or not isinstance(data.get("revision"), str) or not re.fullmatch(r"[0-9a-f]{64}", data["revision"]):
+        if (
+            not isinstance(data, dict)
+            or not isinstance(data.get("revision"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", data["revision"])
+        ):
             raise ControllerError("Mock remote head corrupt")
         return data["revision"]
 
@@ -140,7 +144,7 @@ class MockStorage:
         }
         digest = hashlib.sha256()
         for path, checksum in sorted(fingerprints.items()):
-            digest.update(path.encode("utf-8") + b"\\0" + checksum.encode("ascii") + b"\\n")
+            digest.update(path.encode("utf-8") + b"\0" + checksum.encode("ascii") + b"\n")
         return digest.hexdigest()
 
     def preview(self, bundle: Path) -> Plan:
@@ -164,10 +168,12 @@ class MockStorage:
         metadata_conflicts = sum(
             1 for path, digest in previous_metadata.items() if new_metadata.get(path) != digest
         )
-        status = (
-            "conflict" if conflicting or missing or metadata_conflicts
-            else ("no-op" if not created and new_metadata == previous_metadata else "new")
-        )
+        if conflicting or missing or metadata_conflicts:
+            status = "conflict"
+        elif not created and new_metadata == previous_metadata:
+            status = "no-op"
+        else:
+            status = "new"
         return Plan(revision, status, created, unchanged, conflicting + missing, metadata_conflicts)
 
     @contextmanager
@@ -210,11 +216,17 @@ class MockStorage:
             stage = Path(tempfile.mkdtemp(prefix=".mock-stage-", dir=dest.parent))
             try:
                 shutil.copytree(bundle, stage / "bundle", symlinks=False)
+                verify_bundle(stage / "bundle")
+                if self._snapshot_digest(stage / "bundle") != revision:
+                    raise ControllerError("Bundle changed while staging mock snapshot")
                 (stage / "bundle").rename(dest)
-                verify_bundle(dest)
             finally:
                 if stage.exists():
                     shutil.rmtree(stage)
+        # A pre-existing content-addressed snapshot must not have been tampered with.
+        verify_bundle(dest)
+        if self._snapshot_digest(dest) != revision:
+            raise ControllerError("Mock snapshot bytes changed since committed revision")
         # Check again under an exclusive lock before the atomic pointer switch.
         if self._head() != expected_revision:
             raise RevisionConflict("Mock remote changed before final revision switch")
