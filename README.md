@@ -49,7 +49,7 @@ The synthetic generator creates **two original fictional series, four chapters a
 | Read-only private HF dataset health | Optional; requires `pip install -e ".[huggingface]"` and an explicit repo ID |
 | HF upload, private cloud reader, account creation, sync, destructive commands | **Disabled / awaiting owner approval** |
 
-Local backup archives include media **and** manifests. A catalogue export on its own is **not** a media backup. For contracts and decisions see [docs/DATA_CONTRACTS.md](docs/DATA_CONTRACTS.md), [docs/SAFETY_AND_RECOVERY.md](docs/SAFETY_AND_RECOVERY.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
+Local backup archives include media **and** manifests. A catalogue export on its own is **not** a media backup. Mock preview now also reports `metadataConflicts` and refuses changed chapter order, catalogue records and rights evidence; it will not silently declare a metadata-only change a no-op. For contracts and decisions see [docs/DATA_CONTRACTS.md](docs/DATA_CONTRACTS.md), [docs/SAFETY_AND_RECOVERY.md](docs/SAFETY_AND_RECOVERY.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Development
 

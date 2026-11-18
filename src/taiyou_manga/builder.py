@@ -243,9 +243,11 @@ def build(
     return _build(source, output, state_file, title, direction, parse_rights(rights_path), limits)
 
 
-def verify_bundle(bundle: Path, limits: Limits = DEFAULT_LIMITS) -> dict[str, Any]:
+def _verify_bundle(bundle: Path, limits: Limits = DEFAULT_LIMITS) -> dict[str, Any]:
     if bundle.is_symlink() or not bundle.is_dir():
         raise ControllerError("Bundle directory missing or unsafe")
+    if any(path.is_symlink() for path in bundle.rglob("*")):
+        raise ControllerError("Bundle contains a symlink")
     inventory = load_json(bundle / "inventory.json")
     catalogue = load_json(bundle / "catalogue.json")
     if not isinstance(inventory, dict) or inventory.get("controllerCandidateVersion") != 1:
@@ -312,6 +314,12 @@ def verify_bundle(bundle: Path, limits: Limits = DEFAULT_LIMITS) -> dict[str, An
         parse_rights(rights_path)
     if inventory.get("rightsVerified") != rights_path.exists():
         raise ControllerError("Rights evidence state mismatched")
+    allowed_files = paths | {bundle / "catalogue.json", bundle / "inventory.json"}
+    allowed_files.update(bundle / "manifests" / f"{cid}.json" for cid in chapter_ids)
+    if rights_path.exists():
+        allowed_files.add(rights_path)
+    if {path for path in bundle.rglob("*") if path.is_file()} != allowed_files:
+        raise ControllerError("Unexpected, missing or orphaned bundle files")
     return {
         "series": len(series_ids),
         "chapters": len(chapter_ids),
@@ -319,3 +327,13 @@ def verify_bundle(bundle: Path, limits: Limits = DEFAULT_LIMITS) -> dict[str, An
         "rightsDeclared": rights_path.exists(),
         "warnings": inventory.get("warnings", []),
     }
+
+
+def verify_bundle(bundle: Path, limits: Limits = DEFAULT_LIMITS) -> dict[str, Any]:
+    """Fail closed on malformed external JSON instead of leaking Python tracebacks."""
+    try:
+        return _verify_bundle(bundle, limits)
+    except ControllerError:
+        raise
+    except (KeyError, TypeError, AttributeError, IndexError) as exc:
+        raise ControllerError("Malformed bundle metadata") from exc
