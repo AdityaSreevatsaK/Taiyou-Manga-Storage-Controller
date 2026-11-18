@@ -58,7 +58,7 @@ def export_inventory_csv(bundle: Path, output: Path) -> dict[str, object]:
     rows.sort(
         key=lambda item: (
             str(item["series_title"]).casefold(),
-            int(item["chapter_sequence"]),
+            int(str(item["chapter_sequence"])),
             str(item["chapter_id"]),
         )
     )
@@ -67,7 +67,7 @@ def export_inventory_csv(bundle: Path, output: Path) -> dict[str, object]:
     try:
         with output.open("x", encoding="utf-8-sig", newline="") as handle:
             created = True
-            writer = csv.DictWriter(handle, fieldnames=FIELDS, lineterminator="\\n")
+            writer = csv.DictWriter(handle, fieldnames=FIELDS, lineterminator="\n")
             writer.writeheader()
             writer.writerows(rows)
     except BaseException:
