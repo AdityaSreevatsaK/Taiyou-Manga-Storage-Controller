@@ -1,6 +1,8 @@
 # Tests and evidence
 
-Offline tests cover valid and corrupt PNGs, MIME mismatch, decoded size limits, natural ordering, ZIP/CBZ traversal and case-insensitive duplicates, symlinks, suspicious compression, non-images, stable IDs after title updates, idempotent rebuilds, strict manifest validation, missing assets, duplicate pages, revision conflicts, no-op mock reruns, unapproved mock write rejection, full-media backup integrity and non-destructive restoration. `hf-health` validation has no live CI invocation. No credentials or private content are needed.
+Offline tests cover valid and corrupt PNGs, MIME mismatch, decoded size limits, natural ordering, ZIP/CBZ traversal and case-insensitive duplicates, symlinks, suspicious compression, non-images, stable IDs after title updates, idempotent rebuilds, guarded cross-process registry writes and failed-publish recovery, strict manifest validation, missing assets, duplicate pages, revision conflicts, no-op mock reruns, unapproved mock write rejection, full-media backup integrity and non-destructive restoration. Mock revisions detect rights/catalogue/manifest edits and refuse modified or missing snapshots. Private CSV reports are tested for formula injection, idempotent refusal, corrupt input and accurate chapter aggregates.
+
+At PR #4 (18 November 2026), the matrix passed **38 tests** on each of Windows/Linux and Python 3.11/3.12, plus Ruff formatting/linting, mypy and pip-audit. The actual workflow run is the source of truth for newer changes. `hf-health` validation has no live CI invocation. No credentials or private content are needed.
 
 Run `python -m unittest discover -s tests -v` with Pillow installed. Then `python -m ruff format --check .`, `python -m ruff check .`, `python -m mypy src/taiyou_manga`, `python -m pip_audit`. CI matrix: Windows/Linux, Python 3.11/3.12. Do not claim that hosted CI passed until the actual PR workflows complete.
 
