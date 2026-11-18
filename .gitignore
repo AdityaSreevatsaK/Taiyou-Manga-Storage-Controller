@@ -8,6 +8,7 @@
 *.webp
 *.avif
 *.jsonl
+*.csv
 hf_*/
 mock_remote/
 demo_manga/
