@@ -26,6 +26,7 @@ python -m taiyou_manga fixtures --output demo_manga
 python -m taiyou_manga scan --source demo_manga
 python -m taiyou_manga manifest --source demo_manga --output bundles/demo-1 --rights-json demo_manga-rights-example.json
 python -m taiyou_manga inventory --bundle bundles/demo-1
+python -m taiyou_manga export-csv --bundle bundles/demo-1 --output reports/demo-1.csv
 python -m taiyou_manga verify --bundle bundles/demo-1
 python -m taiyou_manga plan-upload --bundle bundles/demo-1 --mock-dir mock_remote
 python -m taiyou_manga backup --bundle bundles/demo-1 --output backups/demo-1.zip
@@ -48,6 +49,8 @@ The synthetic generator creates **two original fictional series, four chapters a
 | Verified full-media backups, read-only restore preview, new-folder restoration | Implemented |
 | Read-only private HF dataset health | Optional; requires `pip install -e ".[huggingface]"` and an explicit repo ID |
 | HF upload, private cloud reader, account creation, sync, destructive commands | **Disabled / awaiting owner approval** |
+
+**CSV exports contain private series and chapter titles.** They use a new-file-only destination, spreadsheet formula escaping and a Git-ignore rule, but should never be committed or shared publicly. The Windows menu also offers CSV export.
 
 Local backup archives include media **and** manifests. A catalogue export on its own is **not** a media backup. Mock preview now also reports `metadataConflicts` and refuses changed chapter order, catalogue records and rights evidence; it will not silently declare a metadata-only change a no-op. For contracts and decisions see [docs/DATA_CONTRACTS.md](docs/DATA_CONTRACTS.md), [docs/SAFETY_AND_RECOVERY.md](docs/SAFETY_AND_RECOVERY.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
 
