@@ -25,6 +25,8 @@ class Limits:
     max_pages: int = 1_000
     max_archive_bytes: int = 500_000_000
     max_ratio: int = 100
+    max_chapters: int = 10_000
+    max_total_import_bytes: int = 5_000_000_000
 
 
 DEFAULT_LIMITS = Limits()
