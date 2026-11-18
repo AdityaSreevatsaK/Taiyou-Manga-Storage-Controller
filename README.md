@@ -36,6 +36,8 @@ python -m taiyou_manga restore --backup backups/demo-1.zip --destination bundles
 
 `restore` previews only by default. Add `--approve` to restore into a **new** local folder. `mock-upload` also requires `--approve` and the exact expected revision from `plan-upload`; it writes only to a disposable local mock directory. Neither command writes to Hugging Face.
 
+`scan` and `manifest` enforce chapter and total import quotas without retaining all chapters' image bytes in RAM; adjust with `--max-chapters` and `--max-total-mb` (default 10,000 chapters and 5,000 MB). Archive and folder chapters each have a 500 MB safety ceiling. See [docs/IMPORT_FORMATS.md](docs/IMPORT_FORMATS.md).
+
 The synthetic generator creates **two original fictional series, four chapters and 12 PNG pages**. The default candidate manifest uses the Manga Library's `ChapterManifest` v1 and `MangaEntry` field shapes. A `.manga-controller/ids.json` registry preserves opaque IDs across repeat imports; keep this private file backed up. Registry writes now use a cross-process exclusive lock and a secure atomic file replacement. If a prior process crashed, inspect any `ids.json.lock` before manually clearing it. Changing a displayed title does not change IDs. Changing the source paths without preserving the registry mapping is **not yet supported**.
 
 ## Current boundaries

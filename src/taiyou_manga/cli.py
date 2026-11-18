@@ -36,6 +36,13 @@ def parser() -> argparse.ArgumentParser:
     generate.add_argument("--series-title")
     generate.add_argument("--direction", choices=["rtl", "ltr", "vertical"], default="rtl")
     generate.add_argument("--rights-json", type=_path)
+    for command in (scan, generate):
+        command.add_argument(
+            "--max-total-mb", type=int, default=5000, help="Image data quota in decimal MB (1 to 5000)"
+        )
+        command.add_argument(
+            "--max-chapters", type=int, default=10000, help="Maximum chapter count (1 to 10000)"
+        )
     for name in ("inventory", "verify"):
         sub.add_parser(name, help="Inspect verified bundle").add_argument(
             "--bundle", required=True, type=_path
@@ -70,21 +77,34 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
+def _import_limits(args: argparse.Namespace) -> Limits:
+    if not 1 <= args.max_total_mb <= 5000 or not 1 <= args.max_chapters <= 10000:
+        raise ControllerError("Import quotas must be within 1-5000 MB and 1-10000 chapters")
+    return Limits(max_total_import_bytes=args.max_total_mb * 1_000_000, max_chapters=args.max_chapters)
+
+
 def run(args: argparse.Namespace) -> dict[str, Any]:
     cmd = args.command
     if cmd == "fixtures":
         return create_demo(args.output)
     if cmd == "scan":
-        chapters = list(discover(args.source, Limits()))
-        return {
-            "status": "read-only",
-            "chapters": len(chapters),
-            "pages": sum(len(chapter.pages) for chapter in chapters),
-            "sources": [{"chapter": chapter.key, "pages": len(chapter.pages)} for chapter in chapters],
-        }
+        chapters = 0
+        pages = 0
+        sources: list[dict[str, Any]] = []
+        for chapter in discover(args.source, _import_limits(args)):
+            chapters += 1
+            pages += len(chapter.pages)
+            sources.append({"chapter": chapter.key, "pages": len(chapter.pages)})
+        return {"status": "read-only", "chapters": chapters, "pages": pages, "sources": sources}
     if cmd == "manifest":
         return build(
-            args.source, args.output, args.state_file, args.series_title, args.direction, args.rights_json
+            args.source,
+            args.output,
+            args.state_file,
+            args.series_title,
+            args.direction,
+            args.rights_json,
+            _import_limits(args),
         )
     if cmd in ("inventory", "verify"):
         result = verify_bundle(args.bundle)
