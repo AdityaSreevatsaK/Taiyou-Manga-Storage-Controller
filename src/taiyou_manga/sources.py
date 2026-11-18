@@ -49,6 +49,8 @@ def _safe_member(name: str) -> None:
 
 def read_archive(path: Path, limits: Limits = DEFAULT_LIMITS) -> tuple[RawPage, ...]:
     try:
+        if path.stat().st_size > limits.max_archive_bytes:
+            raise ControllerError("Archive compressed size exceeds quota")
         with zipfile.ZipFile(path) as zf:
             entries = zf.infolist()
             if not 1 <= len(entries) <= limits.max_pages:
@@ -57,7 +59,9 @@ def read_archive(path: Path, limits: Limits = DEFAULT_LIMITS) -> tuple[RawPage, 
             total = 0
             images: list[tuple[str, zipfile.ZipInfo]] = []
             for member in entries:
-                _safe_member(member.filename)
+                # Standard CBZ files may contain explicit directory entries.
+                # Validate the underlying path before ignoring those entries.
+                _safe_member(member.filename[:-1] if member.is_dir() else member.filename)
                 if member.is_dir():
                     continue
                 mode = member.external_attr >> 16
@@ -104,11 +108,19 @@ def read_folder(path: Path, root: Path, limits: Limits = DEFAULT_LIMITS) -> tupl
     files = sorted((p for p in path.iterdir() if p.is_file()), key=lambda p: natural_key(p.name))
     if not 1 <= len(files) <= limits.max_pages:
         raise ControllerError("Chapter folder contains no pages or too many entries")
-    result = []
+    total = 0
     for image_path in files:
         _check_path(image_path, root)
         if image_path.suffix.lower() not in IMAGE_EXTENSIONS:
             raise ControllerError(f"Unsupported chapter file: {image_path.name}")
+        size = image_path.stat().st_size
+        if size < 1 or size > limits.max_image_bytes:
+            raise ControllerError(f"Image file size exceeds quota: {image_path.name}")
+        total += size
+        if total > limits.max_archive_bytes:
+            raise ControllerError("Chapter folder total size exceeds quota")
+    result = []
+    for image_path in files:
         result.append(RawPage(image_path.name, read_limited(image_path, limits.max_image_bytes)))
     return tuple(result)
 
@@ -123,7 +135,22 @@ def _infer(root: Path, chapter: Path, *, single: bool = False) -> tuple[str, str
     return series, series, label, volume
 
 
-def discover(source: Path, limits: Limits = DEFAULT_LIMITS) -> Iterator[ChapterSource]:
+def _directories(root: Path) -> Iterator[Path]:
+    """Walk one directory at a time, without materialising the entire source tree."""
+    stack = [root]
+    while stack:
+        folder = stack.pop()
+        children = sorted(folder.iterdir(), key=lambda path: natural_key(path.name))
+        directories = []
+        for child in children:
+            _check_path(child, root)
+            if child.is_dir():
+                directories.append(child)
+        stack.extend(reversed(directories))
+        yield folder
+
+
+def _discover(source: Path, limits: Limits) -> Iterator[ChapterSource]:
     if source.is_symlink() or not source.exists():
         raise ControllerError("Input does not exist or is a symlink")
     if source.is_file():
@@ -133,15 +160,8 @@ def discover(source: Path, limits: Limits = DEFAULT_LIMITS) -> Iterator[ChapterS
         yield ChapterSource(".", key, title, label, volume, read_archive(source, limits))
         return
     root = source.resolve()
-    directories = [root]
-    # os.walk doesn't follow directory symlinks, but explicitly reject them.
-    for folder in sorted(root.rglob("*")):
-        if folder.is_symlink():
-            raise ControllerError("Input contains a symlink")
-        if folder.is_dir():
-            directories.append(folder)
     found = 0
-    for folder in sorted(directories, key=lambda p: natural_key(str(p.relative_to(root)))):
+    for folder in _directories(root):
         image_files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS]
         if image_files:
             if folder == root:
@@ -167,3 +187,19 @@ def discover(source: Path, limits: Limits = DEFAULT_LIMITS) -> Iterator[ChapterS
                 )
     if not found:
         raise ControllerError("No supported chapter folders or archives found")
+
+
+def discover(source: Path, limits: Limits = DEFAULT_LIMITS) -> Iterator[ChapterSource]:
+    """Validate aggregate quotas while yielding only one decoded chapter at a time."""
+    if limits.max_chapters < 1 or limits.max_total_import_bytes < 1:
+        raise ControllerError("Invalid import quotas")
+    chapters = 0
+    total = 0
+    for item in _discover(source, limits):
+        chapters += 1
+        if chapters > limits.max_chapters:
+            raise ControllerError("Total chapter count exceeds import quota")
+        total += sum(len(page.data) for page in item.pages)
+        if total > limits.max_total_import_bytes:
+            raise ControllerError("Total image bytes exceed import quota")
+        yield item
