@@ -14,10 +14,12 @@ from .domain import ControllerError
 def create_demo(root: Path) -> dict[str, object]:
     if root.exists():
         raise ControllerError("Demo destination exists; refusing overwrite")
-    groups = [("Signal Garden", "Volume 1", "Chapter 1", 3),
-              ("Signal Garden", "Volume 1", "Chapter 2", 4),
-              ("Moonlit Courier", "Volume 1", "Chapter 1", 2),
-              ("Moonlit Courier", "Volume 2", "Chapter 2", 3)]
+    groups = [
+        ("Signal Garden", "Volume 1", "Chapter 1", 3),
+        ("Signal Garden", "Volume 1", "Chapter 2", 4),
+        ("Moonlit Courier", "Volume 1", "Chapter 1", 2),
+        ("Moonlit Courier", "Volume 2", "Chapter 2", 3),
+    ]
     pages = 0
     for group_index, (series, volume, chapter, count) in enumerate(groups):
         folder = root / series / volume / chapter
@@ -34,8 +36,15 @@ def create_demo(root: Path) -> dict[str, object]:
                     image.save(buffer, format="PNG")
                     (folder / f"page-{i + 1:03}.png").write_bytes(buffer.getvalue())
                 pages += 1
-    write_json(root.parent / (root.name + "-rights-example.json"), {
-        "schemaVersion": 1, "sourceType": "original", "title": "Synthetic controller examples",
-        "permissionEvidence": "Original synthetic images created for controller testing",
-        "attribution": "Taiyou Manga Controller fixtures", "recordedAt": "2026-11-18T00:00:00Z"})
+    write_json(
+        root.parent / (root.name + "-rights-example.json"),
+        {
+            "schemaVersion": 1,
+            "sourceType": "original",
+            "title": "Synthetic controller examples",
+            "permissionEvidence": "Original synthetic images created for controller testing",
+            "attribution": "Taiyou Manga Controller fixtures",
+            "recordedAt": "2026-11-18T00:00:00Z",
+        },
+    )
     return {"series": 2, "chapters": 4, "pages": pages, "source": str(root)}

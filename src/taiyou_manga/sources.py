@@ -5,11 +5,11 @@ from __future__ import annotations
 import re
 import stat
 import zipfile
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Iterator
 
-from .domain import ControllerError, IMAGE_EXTENSIONS
+from .domain import IMAGE_EXTENSIONS, ControllerError
 from .images import Limits, read_limited
 
 
@@ -37,8 +37,13 @@ def _safe_member(name: str) -> None:
     if not name or len(name) > 240 or "\\" in name or "\x00" in name or "%" in name:
         raise ControllerError("Unsafe ZIP member name")
     parsed = PurePosixPath(name)
-    if (parsed.is_absolute() or any(part in ("..", ".") for part in name.split("/"))
-            or ":" in name or len(parsed.parts) > 10 or any(not part for part in name.split("/"))):
+    if (
+        parsed.is_absolute()
+        or any(part in ("..", ".") for part in name.split("/"))
+        or ":" in name
+        or len(parsed.parts) > 10
+        or any(not part for part in name.split("/"))
+    ):
         raise ControllerError("ZIP traversal or invalid member path")
 
 
@@ -144,14 +149,21 @@ def discover(source: Path, limits: Limits = Limits()) -> Iterator[ChapterSource]
             else:
                 key, title, label, volume = _infer(root, folder)
             found += 1
-            yield ChapterSource(folder.relative_to(root).as_posix(), key, title, label, volume,
-                                read_folder(folder, root, limits))
+            yield ChapterSource(
+                folder.relative_to(root).as_posix(),
+                key,
+                title,
+                label,
+                volume,
+                read_folder(folder, root, limits),
+            )
         for arc in sorted(folder.glob("*"), key=lambda p: natural_key(p.name)):
             if arc.is_file() and arc.suffix.lower() in (".zip", ".cbz"):
                 _check_path(arc, root)
                 key, title, label, volume = _infer(root, arc)
                 found += 1
-                yield ChapterSource(arc.relative_to(root).as_posix(), key, title, label, volume,
-                                    read_archive(arc, limits))
+                yield ChapterSource(
+                    arc.relative_to(root).as_posix(), key, title, label, volume, read_archive(arc, limits)
+                )
     if not found:
         raise ControllerError("No supported chapter folders or archives found")

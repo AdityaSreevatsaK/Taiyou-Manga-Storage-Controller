@@ -12,7 +12,15 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from .domain import Chapter, ChapterManifest, ControllerError, Page, safe_text, valid_id, validate_manifest_json
+from .domain import (
+    Chapter,
+    ChapterManifest,
+    ControllerError,
+    Page,
+    safe_text,
+    valid_id,
+    validate_manifest_json,
+)
 from .images import Limits, check_bytes, read_limited
 from .sources import ChapterSource, discover, natural_key
 
@@ -33,7 +41,9 @@ def _registry(state_file: Path) -> dict[str, str]:
     if not state_file.exists():
         return {}
     data = load_json(state_file)
-    if not isinstance(data, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in data.items()):
+    if not isinstance(data, dict) or not all(
+        isinstance(k, str) and isinstance(v, str) for k, v in data.items()
+    ):
         raise ControllerError("Invalid local identity registry")
     for key, value in data.items():
         valid_id(value, "ch" if key.startswith("chapter:") else "mng")
@@ -74,19 +84,35 @@ def parse_rights(path: Path | None) -> dict[str, Any] | None:
     if path is None:
         return None
     data = load_json(path)
-    if not isinstance(data, dict) or set(data) != {"schemaVersion", "sourceType", "title", "permissionEvidence", "attribution", "recordedAt"}:
+    if not isinstance(data, dict) or set(data) != {
+        "schemaVersion",
+        "sourceType",
+        "title",
+        "permissionEvidence",
+        "attribution",
+        "recordedAt",
+    }:
         raise ControllerError("Rights evidence does not match v1 SourceRights")
     if data["schemaVersion"] != 1 or data["sourceType"] not in ("original", "owned", "licensed"):
         raise ControllerError("Unsupported rights declaration")
     for name, maximum in (("title", 180), ("permissionEvidence", 400), ("attribution", 400)):
         safe_text(data[name], maximum)
-    if not isinstance(data["recordedAt"], str) or not re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", data["recordedAt"]):
+    if not isinstance(data["recordedAt"], str) or not re.fullmatch(
+        r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", data["recordedAt"]
+    ):
         raise ControllerError("Rights timestamp must be UTC ISO-8601")
     return data
 
 
-def _build(source: Path, output: Path, state_file: Path, title: str | None, direction: str,
-           rights: dict[str, Any] | None, limits: Limits) -> dict[str, Any]:
+def _build(
+    source: Path,
+    output: Path,
+    state_file: Path,
+    title: str | None,
+    direction: str,
+    rights: dict[str, Any] | None,
+    limits: Limits,
+) -> dict[str, Any]:
     if direction not in ("rtl", "ltr", "vertical"):
         raise ControllerError("Reading direction must be rtl, ltr or vertical")
     if title:
@@ -125,8 +151,15 @@ def _build(source: Path, output: Path, state_file: Path, title: str | None, dire
                 checksums.add(checked.checksum)
                 page_id = _page_id(chapter_id, checked.checksum)
                 asset_path = f"manga/{series_id}/{chapter_id}/{page_id}{checked.extension}"
-                page = Page(page_id, asset_path, checked.mime, checked.width, checked.height,
-                            checked.byte_size, checked.checksum)
+                page = Page(
+                    page_id,
+                    asset_path,
+                    checked.mime,
+                    checked.width,
+                    checked.height,
+                    checked.byte_size,
+                    checked.checksum,
+                )
                 pages.append(page)
                 destination = stage / "assets" / asset_path
                 destination.parent.mkdir(parents=True, exist_ok=True)
@@ -139,21 +172,49 @@ def _build(source: Path, output: Path, state_file: Path, title: str | None, dire
             manifest = ChapterManifest(chapter_id, tuple(pages))
             manifest.validate()
             write_json(stage / "manifests" / f"{chapter_id}.json", manifest.as_json())
-            series[series_id].append((Chapter(chapter_id, safe_text(item.chapter_label, 120), 0,
-                                                   safe_text(item.volume, 60) if item.volume else None,
-                                                   len(pages)), manifest))
+            series[series_id].append(
+                (
+                    Chapter(
+                        chapter_id,
+                        safe_text(item.chapter_label, 120),
+                        0,
+                        safe_text(item.volume, 60) if item.volume else None,
+                        len(pages),
+                    ),
+                    manifest,
+                )
+            )
         catalogue = []
         for sid, chapters in sorted(series.items(), key=lambda pair: titles[pair[0]].casefold()):
-            ordered = sorted(chapters, key=lambda pair: natural_key((pair[0].volume or "") + "/" + pair[0].label))
-            catalogue.append({"kind": "manga", "id": sid, "title": titles[sid], "aliases": [], "creators": [],
-                              "tags": [], "publicationStatus": "unknown", "direction": direction,
-                              "chapters": [Chapter(c.id, c.label, i, c.volume, c.pageCount).as_json()
-                                           for i, (c, _) in enumerate(ordered)]})
-        inventory: dict[str, Any] = {"controllerCandidateVersion": 1, "mediaKind": "manga",
-                                     "state": "local-draft-not-approved-persisted-schema",
-                                     "series": len(catalogue), "chapters": len(sources),
-                                     "pages": sum(len(m.pages) for chapters in series.values() for _, m in chapters),
-                                     "warnings": sorted(set(warnings)), "rightsVerified": rights is not None}
+            ordered = sorted(
+                chapters, key=lambda pair: natural_key((pair[0].volume or "") + "/" + pair[0].label)
+            )
+            catalogue.append(
+                {
+                    "kind": "manga",
+                    "id": sid,
+                    "title": titles[sid],
+                    "aliases": [],
+                    "creators": [],
+                    "tags": [],
+                    "publicationStatus": "unknown",
+                    "direction": direction,
+                    "chapters": [
+                        Chapter(c.id, c.label, i, c.volume, c.pageCount).as_json()
+                        for i, (c, _) in enumerate(ordered)
+                    ],
+                }
+            )
+        inventory: dict[str, Any] = {
+            "controllerCandidateVersion": 1,
+            "mediaKind": "manga",
+            "state": "local-draft-not-approved-persisted-schema",
+            "series": len(catalogue),
+            "chapters": len(sources),
+            "pages": sum(len(m.pages) for chapters in series.values() for _, m in chapters),
+            "warnings": sorted(set(warnings)),
+            "rightsVerified": rights is not None,
+        }
         write_json(stage / "catalogue.json", catalogue)
         write_json(stage / "inventory.json", inventory)
         if rights:
@@ -170,9 +231,15 @@ def _build(source: Path, output: Path, state_file: Path, title: str | None, dire
             shutil.rmtree(stage)
 
 
-def build(source: Path, output: Path, state_file: Path, title: str | None = None,
-          direction: str = "rtl", rights_path: Path | None = None,
-          limits: Limits = Limits()) -> dict[str, Any]:
+def build(
+    source: Path,
+    output: Path,
+    state_file: Path,
+    title: str | None = None,
+    direction: str = "rtl",
+    rights_path: Path | None = None,
+    limits: Limits = Limits(),
+) -> dict[str, Any]:
     return _build(source, output, state_file, title, direction, parse_rights(rights_path), limits)
 
 
@@ -190,7 +257,11 @@ def verify_bundle(bundle: Path, limits: Limits = Limits()) -> dict[str, Any]:
     paths: set[Path] = set()
     pages_count = 0
     for entry in catalogue:
-        if not isinstance(entry, dict) or entry.get("kind") != "manga" or entry.get("direction") not in ("ltr", "rtl", "vertical"):
+        if (
+            not isinstance(entry, dict)
+            or entry.get("kind") != "manga"
+            or entry.get("direction") not in ("ltr", "rtl", "vertical")
+        ):
             raise ControllerError("Invalid catalogue entry")
         sid = valid_id(entry["id"], "mng")
         if sid in series_ids:
@@ -214,21 +285,37 @@ def verify_bundle(bundle: Path, limits: Limits = Limits()) -> dict[str, Any]:
                 if target.is_symlink() or not target.is_file() or target in paths:
                     raise ControllerError("Missing, linked or duplicated page asset")
                 checked = check_bytes(read_limited(target, limits.max_image_bytes), page.assetPath, limits)
-                if ((checked.checksum, checked.byte_size, checked.mime, checked.width, checked.height)
-                        != (page.sha256, page.byteSize, page.mimeType, page.width, page.height)):
+                if (checked.checksum, checked.byte_size, checked.mime, checked.width, checked.height) != (
+                    page.sha256,
+                    page.byteSize,
+                    page.mimeType,
+                    page.width,
+                    page.height,
+                ):
                     raise ControllerError("Page checksum or decoded metadata changed")
                 paths.add(target)
                 pages_count += 1
-    assets = set((bundle / "assets" / "manga").rglob("*")) if (bundle / "assets" / "manga").exists() else set()
+    assets = (
+        set((bundle / "assets" / "manga").rglob("*")) if (bundle / "assets" / "manga").exists() else set()
+    )
     actual_files = {p for p in assets if p.is_file()}
     if actual_files != paths or any(p.is_symlink() for p in assets):
         raise ControllerError("Orphaned, missing or linked page assets")
-    if (len(series_ids), len(chapter_ids), pages_count) != (inventory.get("series"), inventory.get("chapters"), inventory.get("pages")):
+    if (len(series_ids), len(chapter_ids), pages_count) != (
+        inventory.get("series"),
+        inventory.get("chapters"),
+        inventory.get("pages"),
+    ):
         raise ControllerError("Inventory totals differ from verified files")
     rights_path = bundle / "rights.json"
     if rights_path.exists():
         parse_rights(rights_path)
     if inventory.get("rightsVerified") != rights_path.exists():
         raise ControllerError("Rights evidence state mismatched")
-    return {"series": len(series_ids), "chapters": len(chapter_ids), "pages": pages_count,
-            "rightsDeclared": rights_path.exists(), "warnings": inventory.get("warnings", [])}
+    return {
+        "series": len(series_ids),
+        "chapters": len(chapter_ids),
+        "pages": pages_count,
+        "rightsDeclared": rights_path.exists(),
+        "warnings": inventory.get("warnings", []),
+    }

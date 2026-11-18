@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PIL import Image, ImageFile
 
-from .domain import ControllerError, IMAGE_EXTENSIONS
+from .domain import IMAGE_EXTENSIONS, ControllerError
 
 Image.MAX_IMAGE_PIXELS = 70_000_000
 ImageFile.LOAD_TRUNCATED_IMAGES = False
@@ -51,13 +51,22 @@ def check_bytes(data: bytes, filename: str, limits: Limits = Limits()) -> Checke
                 if actual != IMAGE_EXTENSIONS[suffix]:
                     raise ControllerError("Image signature and extension disagree")
                 width, height = probe.size
-                if (not 1 <= width <= limits.max_dimension or not 1 <= height <= limits.max_dimension
-                        or width * height > limits.max_pixels):
+                if (
+                    not 1 <= width <= limits.max_dimension
+                    or not 1 <= height <= limits.max_dimension
+                    or width * height > limits.max_pixels
+                ):
                     raise ControllerError("Image dimension/pixel budget exceeded")
                 probe.verify()
             with Image.open(io.BytesIO(data)) as decoded:
                 decoded.load()  # full decode catches truncated streams
-    except (OSError, SyntaxError, ValueError, Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
+    except (
+        OSError,
+        SyntaxError,
+        ValueError,
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+    ) as exc:
         if isinstance(exc, ControllerError):
             raise
         raise ControllerError(f"Invalid or corrupt image: {filename}") from exc

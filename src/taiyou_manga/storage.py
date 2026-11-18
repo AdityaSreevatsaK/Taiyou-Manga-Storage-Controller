@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import os
-from contextlib import contextmanager
-from collections.abc import Iterator
 import shutil
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -33,8 +33,13 @@ class Plan:
     conflicting_pages: int
 
     def as_json(self) -> dict[str, object]:
-        return {"expectedRevision": self.revision, "status": self.status, "newPages": self.new_pages,
-                "unchangedPages": self.unchanged_pages, "conflictingPages": self.conflicting_pages}
+        return {
+            "expectedRevision": self.revision,
+            "status": self.status,
+            "newPages": self.new_pages,
+            "unchangedPages": self.unchanged_pages,
+            "conflictingPages": self.conflicting_pages,
+        }
 
 
 class StorageReader(Protocol):
@@ -58,7 +63,9 @@ class HuggingFaceReadOnly:
         try:
             info = HfApi().dataset_info(self.repo_id)
         except RepositoryNotFoundError as exc:
-            raise ControllerError("Dataset missing, private without permission, or invalid credentials") from exc
+            raise ControllerError(
+                "Dataset missing, private without permission, or invalid credentials"
+            ) from exc
         except GatedRepoError as exc:
             raise ControllerError("Dataset access is not authorised") from exc
         except RevisionNotFoundError as exc:
@@ -67,8 +74,13 @@ class HuggingFaceReadOnly:
             raise ControllerError("Network unavailable during read-only health check") from exc
         if not info.private:
             raise ControllerError("Dataset is not private; refusing manga integration")
-        return {"private": True, "repoType": "dataset", "revision": info.sha,
-                "mode": "read-only", "remoteWrites": False}
+        return {
+            "private": True,
+            "repoType": "dataset",
+            "revision": info.sha,
+            "mode": "read-only",
+            "remoteWrites": False,
+        }
 
     def write(self, *args: object, **kwargs: object) -> None:
         raise RemoteWritesDisabled("Remote writes are disabled pending owner approval")

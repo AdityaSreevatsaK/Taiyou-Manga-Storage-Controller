@@ -34,8 +34,7 @@ def _safe_relative(name: str) -> None:
     if not name or len(name) > 300 or "\\" in name or "\x00" in name or ":" in name:
         raise ControllerError("Unsafe backup member path")
     parts = name.split("/")
-    if (name.startswith("/") or any(x in ("", ".", "..") for x in parts)
-            or PurePosixPath(name).is_absolute()):
+    if name.startswith("/") or any(x in ("", ".", "..") for x in parts) or PurePosixPath(name).is_absolute():
         raise ControllerError("Backup archive traversal")
 
 
@@ -49,7 +48,9 @@ def create_backup(bundle: Path, target: Path) -> dict[str, object]:
     index: dict[str, dict[str, object]] = {}
     total = 0
     target.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(dir=target.parent, prefix=".backup-", suffix=".tmp", delete=False) as handle:
+    with tempfile.NamedTemporaryFile(
+        dir=target.parent, prefix=".backup-", suffix=".tmp", delete=False
+    ) as handle:
         staging = Path(handle.name)
     try:
         with zipfile.ZipFile(staging, mode="w", compression=zipfile.ZIP_STORED, allowZip64=True) as zf:
@@ -63,8 +64,9 @@ def create_backup(bundle: Path, target: Path) -> dict[str, object]:
                     raise ControllerError("Backup total exceeds quota")
                 index[rel] = {"sha256": checksum, "bytes": size}
                 zf.write(path, rel)
-            zf.writestr(INDEX, json.dumps({"backupVersion": 1, "kind": "full-media",
-                                           "files": index}, sort_keys=True))
+            zf.writestr(
+                INDEX, json.dumps({"backupVersion": 1, "kind": "full-media", "files": index}, sort_keys=True)
+            )
         verification = verify_backup(staging)
         staging.rename(target)
         return {**stats, **verification, "path": str(target)}
@@ -94,8 +96,12 @@ def verify_backup(path: Path) -> dict[str, object]:
             if zf.getinfo(INDEX).file_size > 5_000_000:
                 raise ControllerError("Backup index too large")
             index = json.loads(zf.read(INDEX))
-            if (not isinstance(index, dict) or index.get("backupVersion") != 1
-                    or index.get("kind") != "full-media" or not isinstance(index.get("files"), dict)):
+            if (
+                not isinstance(index, dict)
+                or index.get("backupVersion") != 1
+                or index.get("kind") != "full-media"
+                or not isinstance(index.get("files"), dict)
+            ):
                 raise ControllerError("Unknown backup index version")
             expected = index["files"]
             if set(expected) != set(zf.namelist()) - {INDEX}:

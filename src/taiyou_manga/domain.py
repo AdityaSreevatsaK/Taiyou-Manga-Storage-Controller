@@ -10,7 +10,13 @@ import re
 from dataclasses import asdict, dataclass
 from typing import Any
 
-IMAGE_EXTENSIONS = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".avif": "image/avif"}
+IMAGE_EXTENSIONS = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".avif": "image/avif",
+}
 ID_RE = re.compile(r"^(?:mng|ch|pg)_[A-Za-z0-9_-]{8,64}$")
 ASSET_RE = re.compile(r"^manga/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+\.(?:png|jpg|jpeg|webp|avif)$")
 CHECKSUM_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -82,8 +88,12 @@ class ChapterManifest:
     pages: tuple[Page, ...]
 
     def as_json(self) -> dict[str, Any]:
-        return {"schemaVersion": 1, "mediaKind": "manga", "chapterId": self.chapterId,
-                "pages": [asdict(p) for p in self.pages]}
+        return {
+            "schemaVersion": 1,
+            "mediaKind": "manga",
+            "chapterId": self.chapterId,
+            "pages": [asdict(p) for p in self.pages],
+        }
 
     def validate(self) -> None:
         valid_id(self.chapterId, "ch")

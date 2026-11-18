@@ -36,14 +36,18 @@ def parser() -> argparse.ArgumentParser:
     generate.add_argument("--direction", choices=["rtl", "ltr", "vertical"], default="rtl")
     generate.add_argument("--rights-json", type=_path)
     for name in ("inventory", "verify"):
-        sub.add_parser(name, help="Inspect verified bundle").add_argument("--bundle", required=True, type=_path)
+        sub.add_parser(name, help="Inspect verified bundle").add_argument(
+            "--bundle", required=True, type=_path
+        )
     plan = sub.add_parser("plan-upload", help="Dry-run only against a local mock remote")
     plan.add_argument("--bundle", required=True, type=_path)
     plan.add_argument("--mock-dir", required=True, type=_path)
     mock = sub.add_parser("mock-upload", help="Approve local-only mock revision update")
     mock.add_argument("--bundle", required=True, type=_path)
     mock.add_argument("--mock-dir", required=True, type=_path)
-    mock.add_argument("--expected-revision", default="", help="Revision printed by plan-upload (empty for first commit)")
+    mock.add_argument(
+        "--expected-revision", default="", help="Revision printed by plan-upload (empty for first commit)"
+    )
     mock.add_argument("--approve", action="store_true")
     backup = sub.add_parser("backup", help="Create and verify immutable full-media backup")
     backup.add_argument("--bundle", required=True, type=_path)
@@ -54,7 +58,9 @@ def parser() -> argparse.ArgumentParser:
     restore.add_argument("--backup", required=True, type=_path)
     restore.add_argument("--destination", required=True, type=_path)
     restore.add_argument("--approve", action="store_true")
-    health = sub.add_parser("hf-health", help="Optional read-only check of explicitly named private HF dataset")
+    health = sub.add_parser(
+        "hf-health", help="Optional read-only check of explicitly named private HF dataset"
+    )
     health.add_argument("--repo-id", required=True)
     sub.add_parser("menu", help="Interactive Windows-friendly menu")
     return p
@@ -66,16 +72,23 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         return create_demo(args.output)
     if cmd == "scan":
         chapters = list(discover(args.source, Limits()))
-        return {"status": "read-only", "chapters": len(chapters),
-                "pages": sum(len(chapter.pages) for chapter in chapters),
-                "sources": [{"chapter": chapter.key, "pages": len(chapter.pages)} for chapter in chapters]}
+        return {
+            "status": "read-only",
+            "chapters": len(chapters),
+            "pages": sum(len(chapter.pages) for chapter in chapters),
+            "sources": [{"chapter": chapter.key, "pages": len(chapter.pages)} for chapter in chapters],
+        }
     if cmd == "manifest":
-        return build(args.source, args.output, args.state_file, args.series_title, args.direction, args.rights_json)
+        return build(
+            args.source, args.output, args.state_file, args.series_title, args.direction, args.rights_json
+        )
     if cmd in ("inventory", "verify"):
         result = verify_bundle(args.bundle)
         if cmd == "inventory":
-            result["catalogue"] = [{"id": e["id"], "chapters": len(e["chapters"])}
-                                   for e in load_json(args.bundle / "catalogue.json")]
+            result["catalogue"] = [
+                {"id": e["id"], "chapters": len(e["chapters"])}
+                for e in load_json(args.bundle / "catalogue.json")
+            ]
         return result
     if cmd == "plan-upload":
         result = MockStorage(args.mock_dir).preview(args.bundle).as_json()
@@ -102,15 +115,47 @@ def interactive_menu() -> None:
     actions = {
         "1": ("Generate synthetic manga", lambda: ["fixtures", "--output", input("New fixture folder: ")]),
         "2": ("Scan an input folder/archive", lambda: ["scan", "--source", input("Manga source: ")]),
-        "3": ("Build candidate manifest and local media bundle", lambda: [
-            "manifest", "--source", input("Manga source: "), "--output", input("New bundle folder: ")]),
+        "3": (
+            "Build candidate manifest and local media bundle",
+            lambda: [
+                "manifest",
+                "--source",
+                input("Manga source: "),
+                "--output",
+                input("New bundle folder: "),
+            ],
+        ),
         "4": ("Verify local bundle", lambda: ["verify", "--bundle", input("Bundle folder: ")]),
-        "5": ("Preview mock upload", lambda: ["plan-upload", "--bundle", input("Bundle folder: "),
-                                                "--mock-dir", input("Local mock directory: ")]),
-        "6": ("Create verified full-media backup", lambda: ["backup", "--bundle", input("Bundle folder: "),
-                                                           "--output", input("New .zip destination: ")]),
-        "7": ("Preview backup restoration", lambda: ["restore", "--backup", input("Backup .zip: "),
-                                                       "--destination", input("New restore folder: ")]),
+        "5": (
+            "Preview mock upload",
+            lambda: [
+                "plan-upload",
+                "--bundle",
+                input("Bundle folder: "),
+                "--mock-dir",
+                input("Local mock directory: "),
+            ],
+        ),
+        "6": (
+            "Create verified full-media backup",
+            lambda: [
+                "backup",
+                "--bundle",
+                input("Bundle folder: "),
+                "--output",
+                input("New .zip destination: "),
+            ],
+        ),
+        "7": (
+            "Preview backup restoration",
+            lambda: [
+                "restore",
+                "--backup",
+                input("Backup .zip: "),
+                "--destination",
+                input("New restore folder: "),
+            ],
+        ),
         "8": ("Inspect bundle inventory", lambda: ["inventory", "--bundle", input("Bundle folder: ")]),
         "0": ("Exit", lambda: []),
     }

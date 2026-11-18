@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import io
-import json
 import tempfile
 import unittest
 import zipfile
@@ -56,8 +55,15 @@ class ImageAndArchiveTests(unittest.TestCase):
             self.assertEqual([p.name for p in read_archive(archive)], ["2.png", "10.png"])
 
     def test_archive_traversal_absolute_backslashes_and_duplicate_members(self) -> None:
-        for names in (["../evil.png"], ["/evil.png"], ["C:/evil.png"], ["dir\\evil.png"],
-                      ["1.png", "1.png"], ["1.png", "1.PNG"], ["%2e%2e.png"]):
+        for names in (
+            ["../evil.png"],
+            ["/evil.png"],
+            ["C:/evil.png"],
+            ["dir\\evil.png"],
+            ["1.png", "1.png"],
+            ["1.png", "1.PNG"],
+            ["%2e%2e.png"],
+        ):
             with self.subTest(names=names), tempfile.TemporaryDirectory() as root:
                 archive = Path(root) / "bad.cbz"
                 with zipfile.ZipFile(archive, "w") as zf:
@@ -76,7 +82,7 @@ class ImageAndArchiveTests(unittest.TestCase):
             with zipfile.ZipFile(archive, "w") as zf:
                 link = zipfile.ZipInfo("link.png")
                 link.create_system = 3
-                link.external_attr = (0o120777 << 16)
+                link.external_attr = 0o120777 << 16
                 zf.writestr(link, png())
             with self.assertRaises(ControllerError):
                 read_archive(archive)
@@ -96,6 +102,7 @@ class ImageAndArchiveTests(unittest.TestCase):
             except (OSError, NotImplementedError):
                 self.skipTest("Symlinks unavailable")
             from taiyou_manga.sources import read_folder
+
             with self.assertRaises(ControllerError):
                 read_folder(chapter, base)
 
@@ -111,7 +118,9 @@ class BundleTests(unittest.TestCase):
         create_demo(self.demo)
 
     def make_bundle(self) -> dict[str, object]:
-        return build(self.demo, self.bundle, self.registry, rights_path=self.root / "fixtures-rights-example.json")
+        return build(
+            self.demo, self.bundle, self.registry, rights_path=self.root / "fixtures-rights-example.json"
+        )
 
     def test_demo_count_manifest_compatibility_and_integrity(self) -> None:
         stats = self.make_bundle()
@@ -123,14 +132,20 @@ class BundleTests(unittest.TestCase):
     def test_title_change_preserves_opaque_ids_and_progress_identity(self) -> None:
         self.make_bundle()
         before = load_json(self.bundle / "catalogue.json")
-        before_pages = {p["sha256"]: p["id"] for m in (self.bundle / "manifests").glob("*.json")
-                        for p in load_json(m)["pages"]}
+        before_pages = {
+            p["sha256"]: p["id"]
+            for m in (self.bundle / "manifests").glob("*.json")
+            for p in load_json(m)["pages"]
+        }
         before[0]["title"] = "New title (no identity change)"
         write_json(self.bundle / "catalogue.json", before)
         self.assertEqual(verify_bundle(self.bundle)["pages"], 12)
         self.assertEqual(before[0]["id"], load_json(self.bundle / "catalogue.json")[0]["id"])
-        after_pages = {p["sha256"]: p["id"] for m in (self.bundle / "manifests").glob("*.json")
-                       for p in load_json(m)["pages"]}
+        after_pages = {
+            p["sha256"]: p["id"]
+            for m in (self.bundle / "manifests").glob("*.json")
+            for p in load_json(m)["pages"]
+        }
         self.assertEqual(before_pages, after_pages)
 
     def test_rerun_identities_preserved(self) -> None:
@@ -139,8 +154,10 @@ class BundleTests(unittest.TestCase):
         second = self.root / "second"
         build(self.demo, second, self.registry)
         latter = load_json(second / "catalogue.json")
-        self.assertEqual([[c["id"] for c in entry["chapters"]] for entry in first],
-                         [[c["id"] for c in entry["chapters"]] for entry in latter])
+        self.assertEqual(
+            [[c["id"] for c in entry["chapters"]] for entry in first],
+            [[c["id"] for c in entry["chapters"]] for entry in latter],
+        )
         with self.assertRaises(ControllerError):
             build(self.demo, second, self.registry)
 
@@ -214,6 +231,7 @@ class BundleTests(unittest.TestCase):
         target = self.bundle / "assets" / original["assetPath"]
         target.write_bytes(other)
         from hashlib import sha256
+
         original["sha256"] = sha256(other).hexdigest()
         original["byteSize"] = len(other)
         write_json(one, manifest)
@@ -254,6 +272,7 @@ class BundleTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 
 class MockFaultTests(unittest.TestCase):
     def test_lock_refuses_concurrent_writers(self) -> None:
