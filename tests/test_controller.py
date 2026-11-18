@@ -59,7 +59,6 @@ class ImageAndArchiveTests(unittest.TestCase):
             ["../evil.png"],
             ["/evil.png"],
             ["C:/evil.png"],
-            ["dir\\evil.png"],
             ["1.png", "1.png"],
             ["1.png", "1.PNG"],
             ["%2e%2e.png"],
@@ -71,6 +70,13 @@ class ImageAndArchiveTests(unittest.TestCase):
                         zf.writestr(name, png())
                 with self.assertRaises(ControllerError):
                     read_archive(archive)
+
+        # zipfile normalises backslashes on Windows when writing test fixtures.
+        # Validate the original untrusted member name without round-tripping it.
+        from taiyou_manga.sources import _safe_member
+
+        with self.assertRaises(ControllerError):
+            _safe_member("dir\\evil.png")
 
     def test_archive_excess_ratio_symlink_and_nonimage(self) -> None:
         with tempfile.TemporaryDirectory() as root:
