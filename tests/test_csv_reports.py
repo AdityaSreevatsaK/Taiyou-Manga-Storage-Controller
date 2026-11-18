@@ -22,7 +22,9 @@ class CSVReportTests(unittest.TestCase):
         source = self.root / "source"
         self.bundle = self.root / "bundle"
         create_demo(source)
-        build(source, self.bundle, self.root / "ids.json", rights_path=self.root / "source-rights-example.json")
+        build(
+            source, self.bundle, self.root / "ids.json", rights_path=self.root / "source-rights-example.json"
+        )
         self.report = self.root / "reports" / "inventory.csv"
 
     def read_rows(self) -> list[dict[str, str]]:
@@ -44,7 +46,7 @@ class CSVReportTests(unittest.TestCase):
     def test_spreadsheet_formula_injection_is_escaped(self) -> None:
         path = self.bundle / "catalogue.json"
         entries = load_json(path)
-        entries[0]["title"] = "=HYPERLINK(\"https://example.com\",\"click\")"
+        entries[0]["title"] = '=HYPERLINK("https://example.com","click")'
         entries[0]["chapters"][0]["label"] = "+SUM(A1:A5)"
         entries[0]["chapters"][0]["volume"] = "-1+2"
         write_json(path, entries)
