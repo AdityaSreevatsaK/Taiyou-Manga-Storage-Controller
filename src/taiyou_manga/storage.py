@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import shutil
 import tempfile
 from collections.abc import Iterator
@@ -31,6 +32,7 @@ class Plan:
     new_pages: int
     unchanged_pages: int
     conflicting_pages: int
+    metadata_conflicts: int = 0
 
     def as_json(self) -> dict[str, object]:
         return {
@@ -39,6 +41,7 @@ class Plan:
             "newPages": self.new_pages,
             "unchangedPages": self.unchanged_pages,
             "conflictingPages": self.conflicting_pages,
+            "metadataConflicts": self.metadata_conflicts,
         }
 
 
@@ -97,7 +100,7 @@ class MockStorage:
         if not path.exists():
             return None
         data = load_json(path)
-        if not isinstance(data, dict) or not isinstance(data.get("revision"), str):
+        if not isinstance(data, dict) or not isinstance(data.get("revision"), str) or not re.fullmatch(r"[0-9a-f]{64}", data["revision"]):
             raise ControllerError("Mock remote head corrupt")
         return data["revision"]
 
@@ -115,17 +118,57 @@ class MockStorage:
                 result[page["assetPath"]] = page["sha256"]
         return result
 
+    @staticmethod
+    def _metadata_fingerprints(bundle: Path) -> dict[str, str]:
+        """Track every manifest and catalogue/rights record, not just page bytes."""
+        files = [bundle / "catalogue.json", bundle / "inventory.json"]
+        rights = bundle / "rights.json"
+        if rights.exists():
+            files.append(rights)
+        files.extend(sorted((bundle / "manifests").glob("*.json")))
+        return {
+            path.relative_to(bundle).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in files
+        }
+
+    @classmethod
+    def _snapshot_digest(cls, bundle: Path) -> str:
+        """Content address a complete validated bundle, including page order and metadata."""
+        fingerprints = {
+            **{f"assets/{name}": sha for name, sha in cls._fingerprints(bundle).items()},
+            **cls._metadata_fingerprints(bundle),
+        }
+        digest = hashlib.sha256()
+        for path, checksum in sorted(fingerprints.items()):
+            digest.update(path.encode("utf-8") + b"\\0" + checksum.encode("ascii") + b"\\n")
+        return digest.hexdigest()
+
     def preview(self, bundle: Path) -> Plan:
         verify_bundle(bundle)
         revision = self._head()
         new = self._fingerprints(bundle)
-        previous = self._fingerprints(self.root / "snapshots" / revision) if revision else {}
+        new_metadata = self._metadata_fingerprints(bundle)
+        previous: dict[str, str] = {}
+        previous_metadata: dict[str, str] = {}
+        if revision:
+            snapshot = self.root / "snapshots" / revision
+            verify_bundle(snapshot)
+            if self._snapshot_digest(snapshot) != revision:
+                raise ControllerError("Mock snapshot bytes changed since committed revision")
+            previous = self._fingerprints(snapshot)
+            previous_metadata = self._metadata_fingerprints(snapshot)
         conflicting = sum(1 for p in new if p in previous and previous[p] != new[p])
         unchanged = sum(1 for p in new if p in previous and previous[p] == new[p])
         created = len(new) - unchanged - conflicting
         missing = len(previous.keys() - new.keys())
-        status = "conflict" if conflicting or missing else ("no-op" if not created else "new")
-        return Plan(revision, status, created, unchanged, conflicting + missing)
+        metadata_conflicts = sum(
+            1 for path, digest in previous_metadata.items() if new_metadata.get(path) != digest
+        )
+        status = (
+            "conflict" if conflicting or missing or metadata_conflicts
+            else ("no-op" if not created and new_metadata == previous_metadata else "new")
+        )
+        return Plan(revision, status, created, unchanged, conflicting + missing, metadata_conflicts)
 
     @contextmanager
     def _write_lock(self) -> Iterator[None]:
@@ -158,11 +201,8 @@ class MockStorage:
             raise ControllerError("Conflict: mock updates cannot overwrite or delete files")
         if plan.status == "no-op":
             return expected_revision or ""
-        # Snapshot commit is immutable, allowing full-media recovery.
-        contents = hashlib.sha256()
-        for page, checksum in sorted(self._fingerprints(bundle).items()):
-            contents.update(page.encode("utf-8") + b"\0" + checksum.encode("ascii"))
-        revision = contents.hexdigest()
+        # Include every verified bundle record in the immutable snapshot identity.
+        revision = self._snapshot_digest(bundle)
         dest = self.root / "snapshots" / revision
         self.root.mkdir(parents=True, exist_ok=True)
         dest.parent.mkdir(parents=True, exist_ok=True)
