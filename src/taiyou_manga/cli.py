@@ -13,6 +13,7 @@ from .builder import build, load_json, verify_bundle
 from .demo import create_demo
 from .domain import ControllerError
 from .images import Limits
+from .reports import export_inventory_csv
 from .sources import discover
 from .storage import HuggingFaceReadOnly, MockStorage
 
@@ -39,6 +40,9 @@ def parser() -> argparse.ArgumentParser:
         sub.add_parser(name, help="Inspect verified bundle").add_argument(
             "--bundle", required=True, type=_path
         )
+    export = sub.add_parser("export-csv", help="Export verified private chapter inventory as CSV")
+    export.add_argument("--bundle", required=True, type=_path)
+    export.add_argument("--output", required=True, type=_path)
     plan = sub.add_parser("plan-upload", help="Dry-run only against a local mock remote")
     plan.add_argument("--bundle", required=True, type=_path)
     plan.add_argument("--mock-dir", required=True, type=_path)
@@ -90,6 +94,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 for e in load_json(args.bundle / "catalogue.json")
             ]
         return result
+    if cmd == "export-csv":
+        return export_inventory_csv(args.bundle, args.output)
     if cmd == "plan-upload":
         result = MockStorage(args.mock_dir).preview(args.bundle).as_json()
         result["remoteKind"] = "local-mock-only"
@@ -157,6 +163,16 @@ def interactive_menu() -> None:
             ],
         ),
         "8": ("Inspect bundle inventory", lambda: ["inventory", "--bundle", input("Bundle folder: ")]),
+        "9": (
+            "Export private CSV inventory",
+            lambda: [
+                "export-csv",
+                "--bundle",
+                input("Bundle folder: "),
+                "--output",
+                input("New CSV report path: "),
+            ],
+        ),
         "0": ("Exit", lambda: []),
     }
     while True:
