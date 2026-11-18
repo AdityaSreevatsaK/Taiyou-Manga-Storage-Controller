@@ -65,7 +65,7 @@ class BoundedImportTests(unittest.TestCase):
     def test_standard_cbz_directory_entries_are_accepted(self) -> None:
         archive = self.root / "nested.cbz"
         with zipfile.ZipFile(archive, "w") as zf:
-            zf.writestr("Chapter/")
+            zf.writestr("Chapter/", b"")
             zf.writestr("Chapter/001.png", original_png())
         pages = read_archive(archive)
         self.assertEqual([page.name for page in pages], ["Chapter/001.png"])
@@ -73,7 +73,7 @@ class BoundedImportTests(unittest.TestCase):
     def test_nested_zip_traversal_directories_still_rejected(self) -> None:
         archive = self.root / "bad.cbz"
         with zipfile.ZipFile(archive, "w") as zf:
-            zf.writestr("../outside/")
+            zf.writestr("../outside/", b"")
             zf.writestr("001.png", original_png())
         with self.assertRaises(ControllerError):
             read_archive(archive)
