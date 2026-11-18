@@ -120,8 +120,14 @@ def read_folder(path: Path, root: Path, limits: Limits = DEFAULT_LIMITS) -> tupl
         if total > limits.max_archive_bytes:
             raise ControllerError("Chapter folder total size exceeds quota")
     result = []
+    actual_total = 0
     for image_path in files:
-        result.append(RawPage(image_path.name, read_limited(image_path, limits.max_image_bytes)))
+        _check_path(image_path, root)
+        data = read_limited(image_path, limits.max_image_bytes)
+        actual_total += len(data)
+        if actual_total > limits.max_archive_bytes:
+            raise ControllerError("Chapter folder total size changed beyond quota")
+        result.append(RawPage(image_path.name, data))
     return tuple(result)
 
 
