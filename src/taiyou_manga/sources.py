@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from .domain import IMAGE_EXTENSIONS, ControllerError
-from .images import Limits, read_limited
+from .images import DEFAULT_LIMITS, Limits, read_limited
 
 
 @dataclass(frozen=True)
@@ -47,7 +47,7 @@ def _safe_member(name: str) -> None:
         raise ControllerError("ZIP traversal or invalid member path")
 
 
-def read_archive(path: Path, limits: Limits = Limits()) -> tuple[RawPage, ...]:
+def read_archive(path: Path, limits: Limits = DEFAULT_LIMITS) -> tuple[RawPage, ...]:
     try:
         with zipfile.ZipFile(path) as zf:
             entries = zf.infolist()
@@ -100,7 +100,7 @@ def _check_path(path: Path, root: Path) -> None:
         raise ControllerError("Input escapes selected root")
 
 
-def read_folder(path: Path, root: Path, limits: Limits = Limits()) -> tuple[RawPage, ...]:
+def read_folder(path: Path, root: Path, limits: Limits = DEFAULT_LIMITS) -> tuple[RawPage, ...]:
     files = sorted((p for p in path.iterdir() if p.is_file()), key=lambda p: natural_key(p.name))
     if not 1 <= len(files) <= limits.max_pages:
         raise ControllerError("Chapter folder contains no pages or too many entries")
@@ -123,7 +123,7 @@ def _infer(root: Path, chapter: Path, *, single: bool = False) -> tuple[str, str
     return series, series, label, volume
 
 
-def discover(source: Path, limits: Limits = Limits()) -> Iterator[ChapterSource]:
+def discover(source: Path, limits: Limits = DEFAULT_LIMITS) -> Iterator[ChapterSource]:
     if source.is_symlink() or not source.exists():
         raise ControllerError("Input does not exist or is a symlink")
     if source.is_file():

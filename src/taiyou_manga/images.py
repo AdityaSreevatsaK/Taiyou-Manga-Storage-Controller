@@ -27,6 +27,9 @@ class Limits:
     max_ratio: int = 100
 
 
+DEFAULT_LIMITS = Limits()
+
+
 @dataclass(frozen=True)
 class CheckedImage:
     checksum: str
@@ -37,7 +40,7 @@ class CheckedImage:
     extension: str
 
 
-def check_bytes(data: bytes, filename: str, limits: Limits = Limits()) -> CheckedImage:
+def check_bytes(data: bytes, filename: str, limits: Limits = DEFAULT_LIMITS) -> CheckedImage:
     suffix = Path(filename).suffix.lower()
     if suffix not in IMAGE_EXTENSIONS:
         raise ControllerError(f"Unsupported image extension: {suffix or '(none)'}")

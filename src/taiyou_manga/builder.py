@@ -21,7 +21,7 @@ from .domain import (
     valid_id,
     validate_manifest_json,
 )
-from .images import Limits, check_bytes, read_limited
+from .images import DEFAULT_LIMITS, Limits, check_bytes, read_limited
 from .sources import ChapterSource, discover, natural_key
 
 
@@ -238,12 +238,12 @@ def build(
     title: str | None = None,
     direction: str = "rtl",
     rights_path: Path | None = None,
-    limits: Limits = Limits(),
+    limits: Limits = DEFAULT_LIMITS,
 ) -> dict[str, Any]:
     return _build(source, output, state_file, title, direction, parse_rights(rights_path), limits)
 
 
-def verify_bundle(bundle: Path, limits: Limits = Limits()) -> dict[str, Any]:
+def verify_bundle(bundle: Path, limits: Limits = DEFAULT_LIMITS) -> dict[str, Any]:
     if bundle.is_symlink() or not bundle.is_dir():
         raise ControllerError("Bundle directory missing or unsafe")
     inventory = load_json(bundle / "inventory.json")
