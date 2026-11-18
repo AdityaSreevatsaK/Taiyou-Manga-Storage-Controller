@@ -145,23 +145,26 @@ def _build(
     if state_file.resolve().is_relative_to(source.resolve()) and source.is_dir():
         raise ControllerError("Identity registry must be outside the source folder")
     registry = _registry(state_file)
-    sources = list(discover(source, limits))
-    if not sources:
-        raise ControllerError("No chapters")
-    keys = [s.key.casefold() for s in sources]
-    if len(keys) != len(set(keys)):
-        raise ControllerError("Duplicate chapter locations")
-    series: dict[str, list[tuple[Chapter, ChapterManifest]]] = defaultdict(list)
+    # Discover incrementally: never keep the image bytes for every chapter in RAM.
+    seen_keys: set[str] = set()
+    chapter_count = 0
+    page_total = 0
+    series: dict[str, list[Chapter]] = defaultdict(list)
     titles: dict[str, str] = {}
     seen_fingerprints: dict[tuple[str, str], str] = {}
     warnings: list[str] = []
     output.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=".manga-stage-", dir=output.parent))
     try:
-        for item in sources:
+        for item in discover(source, limits):
+            folded = item.key.casefold()
+            if folded in seen_keys:
+                raise ControllerError("Duplicate chapter locations")
+            seen_keys.add(folded)
+            chapter_count += 1
             series_id = _id_for(registry, "series:" + item.series_key, "mng")
             chapter_id = _id_for(registry, "chapter:" + item.key, "ch")
-            titles[series_id] = safe_text(title if title and len(sources) == 1 else item.series_title, 180)
+            titles[series_id] = safe_text(item.series_title, 180)
             warnings.extend(_number_warnings(item))
             pages: list[Page] = []
             checksums: set[str] = set()
@@ -193,22 +196,24 @@ def _build(
             manifest = ChapterManifest(chapter_id, tuple(pages))
             manifest.validate()
             write_json(stage / "manifests" / f"{chapter_id}.json", manifest.as_json())
+            page_total += len(pages)
             series[series_id].append(
-                (
-                    Chapter(
-                        chapter_id,
-                        safe_text(item.chapter_label, 120),
-                        0,
-                        safe_text(item.volume, 60) if item.volume else None,
-                        len(pages),
-                    ),
-                    manifest,
+                Chapter(
+                    chapter_id,
+                    safe_text(item.chapter_label, 120),
+                    0,
+                    safe_text(item.volume, 60) if item.volume else None,
+                    len(pages),
                 )
             )
+        if not chapter_count:
+            raise ControllerError("No chapters")
+        if title and chapter_count == 1:
+            titles[next(iter(titles))] = title
         catalogue = []
         for sid, chapters in sorted(series.items(), key=lambda pair: titles[pair[0]].casefold()):
             ordered = sorted(
-                chapters, key=lambda pair: natural_key((pair[0].volume or "") + "/" + pair[0].label)
+                chapters, key=lambda chapter: natural_key((chapter.volume or "") + "/" + chapter.label)
             )
             catalogue.append(
                 {
@@ -222,7 +227,7 @@ def _build(
                     "direction": direction,
                     "chapters": [
                         Chapter(c.id, c.label, i, c.volume, c.pageCount).as_json()
-                        for i, (c, _) in enumerate(ordered)
+                        for i, c in enumerate(ordered)
                     ],
                 }
             )
@@ -231,8 +236,8 @@ def _build(
             "mediaKind": "manga",
             "state": "local-draft-not-approved-persisted-schema",
             "series": len(catalogue),
-            "chapters": len(sources),
-            "pages": sum(len(m.pages) for chapters in series.values() for _, m in chapters),
+            "chapters": chapter_count,
+            "pages": page_total,
             "warnings": sorted(set(warnings)),
             "rightsVerified": rights is not None,
         }
