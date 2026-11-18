@@ -86,9 +86,7 @@ class BoundedImportTests(unittest.TestCase):
             read_archive(archive, Limits(max_archive_bytes=50))
 
     def test_invalid_cli_limits_fail_with_actionable_errors(self) -> None:
-        self.assertEqual(
-            main(["scan", "--source", str(self.source), "--max-total-mb", "0"]), 2
-        )
+        self.assertEqual(main(["scan", "--source", str(self.source), "--max-total-mb", "0"]), 2)
         self.assertEqual(
             main(
                 [
