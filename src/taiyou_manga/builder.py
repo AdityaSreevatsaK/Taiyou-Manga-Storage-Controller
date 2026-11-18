@@ -96,8 +96,13 @@ def _new_id(prefix: str) -> str:
 
 
 def _id_for(registry: dict[str, str], key: str, prefix: str) -> str:
+    if len(key.partition(":")[2]) > 1000:
+        raise ControllerError("Identity source path exceeds registry limit")
     if key not in registry:
-        registry[key] = _new_id(prefix)
+        candidate = _new_id(prefix)
+        if candidate in registry.values():
+            raise ControllerError("Generated ID collision; retry import")
+        registry[key] = candidate
     return valid_id(registry[key], prefix)
 
 
