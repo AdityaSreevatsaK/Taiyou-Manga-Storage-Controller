@@ -66,8 +66,28 @@ def _registry(state_file: Path) -> dict[str, str]:
         isinstance(k, str) and isinstance(v, str) for k, v in data.items()
     ):
         raise ControllerError("Invalid local identity registry")
+    ids: set[str] = set()
+    folded_keys: set[str] = set()
     for key, value in data.items():
-        valid_id(value, "ch" if key.startswith("chapter:") else "mng")
+        if key.startswith("chapter:"):
+            prefix, source_key = "ch", key[len("chapter:") :]
+        elif key.startswith("series:"):
+            prefix, source_key = "mng", key[len("series:") :]
+        else:
+            raise ControllerError("Unknown identity registry key type")
+        if (
+            not source_key
+            or len(source_key) > 1000
+            or any(ord(char) < 32 or ord(char) == 127 for char in source_key)
+        ):
+            raise ControllerError("Invalid identity registry source key")
+        if key.casefold() in folded_keys:
+            raise ControllerError("Case-insensitive duplicate identity registry keys")
+        folded_keys.add(key.casefold())
+        valid_id(value, prefix)
+        if value in ids:
+            raise ControllerError("Duplicate opaque ID in local identity registry")
+        ids.add(value)
     return data
 
 
@@ -245,6 +265,8 @@ def _build(
         write_json(stage / "inventory.json", inventory)
         if rights:
             write_json(stage / "rights.json", rights)
+        # Validate the completed bundle before persisting any newly assigned IDs.
+        verify_bundle(stage, limits)
         # Publish IDs first. A failed registry write must never expose an untracked bundle.
         state_file.parent.mkdir(parents=True, exist_ok=True)
         fd, temporary_name = tempfile.mkstemp(prefix=".manga-ids-", suffix=".tmp", dir=state_file.parent)
