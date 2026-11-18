@@ -45,7 +45,7 @@ The synthetic generator creates **two original fictional series, four chapters a
 | Folders, ZIP/CBZ, PNG/JPEG/WebP/AVIF content validation | Implemented; AVIF decode needs a Pillow build with AVIF support |
 | Natural page ordering, SHA-256, image dimensions, duplicate pages, immutable IDs | Implemented locally |
 | Local candidate manifests and original media bundle | Implemented (not an approved cloud layout) |
-| JSON reports, local mock revisions, preview-only upload planning | Implemented |
+| JSON and private CSV reports, complete local mock revisions, preview-only upload planning | Implemented |
 | Verified full-media backups, read-only restore preview, new-folder restoration | Implemented |
 | Read-only private HF dataset health | Optional; requires `pip install -e ".[huggingface]"` and an explicit repo ID |
 | HF upload, private cloud reader, account creation, sync, destructive commands | **Disabled / awaiting owner approval** |
