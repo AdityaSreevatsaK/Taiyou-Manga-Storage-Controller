@@ -1,0 +1,10 @@
+# Safety and recovery
+
+1. Run `scan` before importing; use only media you own or may lawfully store.
+2. `manifest` writes to a **new local directory** and refuses overwriting an existing one. Store `ids.json` privately to preserve identity; do not rename source paths without a migration plan.
+3. `verify` decodes every media asset and compares dimensions, MIME, byte size and SHA-256 against each chapter manifest. An incomplete or mismatched bundle fails closed.
+4. `plan-upload` is an offline dry run against a local mock. Real Hugging Face writes are disabled. In the mock, `mock-upload` needs `--approve` and the expected revision. Changed existing media or missing remote media are conflicts and must not be silently deleted.
+5. `backup --bundle bundles/demo-1 --output backups/demo-1.zip` creates a full-media ZIP containing every original image, manifest and rights declaration, plus SHA-256 verification index. `check-backup` rereads every entry and verifies integrity.
+6. `restore --backup backups/demo-1.zip --destination bundles/restored` only previews. Add `--approve` to restore to a new path. It refuses an existing destination, validates archive member names and verifies restored originals.
+
+**A catalogue-only copy is not a full-media backup.** Local-cache deletion is separate and not implemented. There is no bulk dataset reset, deletion or replacement command. Recovery from a compromised HF dataset requires a future owner-approved remote protocol with immutable remote or independently stored backups. Never post backups, logs with titles, or rights evidence to public CI artifacts.

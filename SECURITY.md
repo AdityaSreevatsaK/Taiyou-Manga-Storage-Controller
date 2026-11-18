@@ -1,0 +1,5 @@
+# Security
+
+Report vulnerabilities privately using GitHub's private vulnerability reporting where enabled; never post access tokens or exploit payloads containing private data in public issues. Attack surfaces include malicious CBZ/ZIP paths, symlinks, image decompressors, corrupted metadata, remote revisions, copied backups and credentials. The importer rejects traversal, duplicate ZIP names, symlinks, encrypted entries, decompression ratios above 100, excessive sizes, image-signature mismatch and invalid decodes. It uses in-memory bounded per-page reads, not extraction to archive-controlled paths. The local mock is **not a security boundary** or an authenticated remote service. No live HF write functions are exposed. Read-only health may use your locally configured HF credentials, never CI secrets.
+
+Limits and image-format availability depend on installed Pillow. Large or hostile inputs should be tested in isolated processes with OS memory and CPU limits before broader distribution. Never place actual manga in a public repo, browser bundle or unprotected logging. See [docs/SAFETY_AND_RECOVERY.md](docs/SAFETY_AND_RECOVERY.md).

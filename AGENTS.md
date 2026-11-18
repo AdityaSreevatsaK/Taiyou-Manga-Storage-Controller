@@ -1,0 +1,11 @@
+# Agent operating contract
+
+- This repository owns only **Taiyou-Manga-Storage-Controller**. Read the Manga Library contracts, but do not change `Taiyous-Manga-Library` or the Novels Controller without specific permission.
+- `master` is canonical. Work on focused branches, open PRs and merge verified changes; describe any unavailable checks accurately.
+- Public code, synthetic fixtures and automated CI only. Never check in private manga originals, personal metadata, rights evidence, token files, HF exports or backups.
+- Preserve opaque IDs, zero-based page indices and immutable page-ID semantics. Use `src/domain/types.ts`, `src/domain/validation.ts` and ADR-006 in the Manga Library as compatibility references; ADR-006 is **proposed**, not approved storage.
+- For every untrusted image or archive, verify bytes, dimensions, MIME and CRC/decompression limits. Never extract archive names as destination paths without validation.
+- Never enable real Hugging Face writes, create a dataset, bulk-delete media, or bypass rights checks by default.
+- Guard all future mutations with preview, explicit owner authorisation, revision preconditions, immutable backups, failure recovery and tests.
+- Keep Python 3.11/3.12 and Windows PowerShell working. `python -m unittest discover -s tests -v` needs no paid accounts.
+- Do not claim green CI if jobs have not executed. Document the exact failed/unavailable gate.
