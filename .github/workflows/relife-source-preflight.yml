@@ -46,4 +46,4 @@ jobs:
 
 # Rerun the source validation after adding safe, aggregate-only mismatch details.
 
-# Rerun after safely recognizing only documented MangaDex cover and tracker files.
+# Rerun after safe content-based decoding for the disposable auxiliary cover.

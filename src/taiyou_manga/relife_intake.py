@@ -8,6 +8,7 @@ Neither mode contacts Hugging Face or writes into the source directory.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import re
 import stat
@@ -16,6 +17,8 @@ import zipfile
 from decimal import Decimal
 from pathlib import Path, PurePosixPath
 from typing import Any
+
+from PIL import Image
 
 from .domain import IMAGE_EXTENSIONS, ControllerError
 from .images import DEFAULT_LIMITS, Limits, check_bytes
@@ -191,7 +194,21 @@ def _check_companions(
                 raw = source.read(DEFAULT_LIMITS.max_image_bytes + 1)
             if len(raw) != info.file_size:
                 raise ControllerError("Truncated ReLIFE cover image")
-            check_bytes(raw, "cover.jpg")
+            # The downloader calls its helper "cover.jpg" even when a
+            # remote image is encoded in a different supported format.
+            # Detect from bytes, validate fully, and discard the helper.
+            try:
+                with Image.open(io.BytesIO(raw)) as probe:
+                    detected = probe.format
+            except (OSError, SyntaxError, ValueError) as exc:
+                raise ControllerError("Invalid auxiliary ReLIFE cover image") from exc
+            suffix = {"PNG": ".png", "JPEG": ".jpg", "WEBP": ".webp", "AVIF": ".avif"}.get(detected or "")
+            if suffix is None:
+                raise ControllerError("Unsupported auxiliary ReLIFE cover image format")
+            try:
+                check_bytes(raw, "cover" + suffix)
+            except ControllerError as exc:
+                raise ControllerError("Invalid auxiliary ReLIFE cover image") from exc
         elif kind == "download.db":
             if not 100 <= info.file_size <= 8_000_000:
                 raise ControllerError("ReLIFE download tracker size exceeds quota")
