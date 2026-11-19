@@ -201,7 +201,7 @@ def _check_companions(
             with zf.open(info) as source:
                 header = source.read(16)
                 count += len(header)
-                if header != b"SQLite format 3\\0":
+                if header != b"SQLite format 3\x00":
                     raise ControllerError("Unexpected ReLIFE download tracker signature")
                 while data := source.read(1024 * 1024):
                     count += len(data)
