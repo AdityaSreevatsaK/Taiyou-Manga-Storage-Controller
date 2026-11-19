@@ -224,13 +224,13 @@ def audit_relife_artifacts(
                         raise ControllerError("Duplicate chapter identity across ReLIFE batches")
                     if not start <= Decimal(number) <= end:
                         raise ControllerError("Chapter does not belong to expected artefact range")
-                    info = members.get("ReLIFE/" + relative)
-                    if info is None or info.file_size != size:
+                    cbz_info = members.get("ReLIFE/" + relative)
+                    if cbz_info is None or cbz_info.file_size != size:
                         raise ControllerError("Missing or size-mismatched CBZ inside GitHub artefact")
                     included.add(number)
                     per_batch_pages += _pages_metadata(record)
                     if deep_verify:
-                        _verify_chapter(zf, info, record, DEFAULT_LIMITS)
+                        _verify_chapter(zf, cbz_info, record, DEFAULT_LIMITS)
                     total_cbs += 1
                 if audit.get("verifiedArchives") != len(reports):
                     raise ControllerError("CBZ count differs from Retriever audit")
