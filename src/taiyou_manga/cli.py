@@ -14,6 +14,7 @@ from .demo import create_demo
 from .domain import ControllerError
 from .identity_migration import migrate_identities
 from .images import Limits
+from .relife_intake import audit_relife_artifacts
 from .reports import export_inventory_csv
 from .sources import discover
 from .storage import HuggingFaceReadOnly, MockStorage
@@ -84,6 +85,13 @@ def parser() -> argparse.ArgumentParser:
     identity.add_argument("--expected-revision", help="Exact SHA-256 from the migration preview")
     identity.add_argument("--backup", type=_path, help="New unused local backup path (required to apply)")
     identity.add_argument("--approve", action="store_true")
+    relife = sub.add_parser(
+        "relife-preflight", help="Verify ReLIFE Actions artefact CBZs without remote writes"
+    )
+    relife.add_argument("--artifact-dir", required=True, type=_path)
+    relife.add_argument(
+        "--metadata-only", action="store_true", help="Skip independent media-byte verification"
+    )
     health = sub.add_parser(
         "hf-health", help="Optional read-only check of explicitly named private HF dataset"
     )
@@ -165,6 +173,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             expected_revision=args.expected_revision,
             backup_file=args.backup,
         )
+    if cmd == "relife-preflight":
+        return audit_relife_artifacts(args.artifact_dir, deep_verify=not args.metadata_only)
     if cmd == "hf-health":
         return HuggingFaceReadOnly(args.repo_id).health()
     if cmd == "menu":
