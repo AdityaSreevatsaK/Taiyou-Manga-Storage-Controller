@@ -45,3 +45,5 @@ jobs:
 # an Actions artefact, or commits any media. It checks source integrity only.
 
 # Rerun the source validation after adding safe, aggregate-only mismatch details.
+
+# Rerun after safely recognizing only documented MangaDex cover and tracker files.
