@@ -39,6 +39,7 @@ class ReLIFEIntakeTests(unittest.TestCase):
         omit_rights: bool = False,
         with_companions: bool = False,
         bad_tracker: bool = False,
+        cover_format: str = "JPEG",
     ) -> bytes:
         image = _image()
         checked = check_bytes(image, "001.png")
@@ -93,7 +94,7 @@ class ReLIFEIntakeTests(unittest.TestCase):
             if with_companions:
                 cover = io.BytesIO()
                 with Image.new("RGB", (32, 40), (30, 70, 120)) as picture:
-                    picture.save(cover, format="JPEG")
+                    picture.save(cover, format=cover_format)
                 outer.writestr("ReLIFE/cover.jpg", cover.getvalue())
                 header = b"malformed tracker" if bad_tracker else b"SQLite format 3\x00"
                 outer.writestr("ReLIFE/download.db", header + bytes(120))
@@ -122,6 +123,12 @@ class ReLIFEIntakeTests(unittest.TestCase):
         self.assertEqual(report["cbzArchives"], 2)
         self.assertEqual(report["pages"], 2)
         self.assertEqual(self.zip_path.read_bytes(), original)
+
+    def test_aux_cover_with_png_bytes_but_jpg_name_is_safely_validated(self) -> None:
+        self.fixture(with_companions=True, cover_format="PNG")
+        report = audit_relife_artifacts(self.directory, deep_verify=True, require_complete=False)
+        self.assertEqual(report["pages"], 2)
+        self.assertEqual(report["cbzArchives"], 2)
 
     def test_fake_tracker_is_rejected(self) -> None:
         self.fixture(with_companions=True, bad_tracker=True)
