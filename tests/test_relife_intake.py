@@ -37,6 +37,8 @@ class ReLIFEIntakeTests(unittest.TestCase):
         numbers: tuple[str, ...] = ("1", "19.5"),
         corrupted_cbz_checksum: bool = False,
         omit_rights: bool = False,
+        with_companions: bool = False,
+        bad_tracker: bool = False,
     ) -> bytes:
         image = _image()
         checked = check_bytes(image, "001.png")
@@ -88,6 +90,13 @@ class ReLIFEIntakeTests(unittest.TestCase):
             outer.writestr("relife_quality_audit.json", json.dumps(audit))
             if not omit_rights:
                 outer.writestr("SOURCE_AND_RIGHTS.txt", "No permission asserted")
+            if with_companions:
+                cover = io.BytesIO()
+                with Image.new("RGB", (32, 40), (30, 70, 120)) as picture:
+                    picture.save(cover, format="JPEG")
+                outer.writestr("ReLIFE/cover.jpg", cover.getvalue())
+                header = b"malformed tracker" if bad_tracker else b"SQLite format 3\\x00"
+                outer.writestr("ReLIFE/download.db", header + bytes(120))
             for name, payload in embedded.items():
                 outer.writestr(name, payload)
         self.zip_path.write_bytes(buffer.getvalue())
@@ -106,6 +115,18 @@ class ReLIFEIntakeTests(unittest.TestCase):
         self.assertEqual(verified["pages"], 2)
         self.assertEqual(self.zip_path.read_bytes(), original)
         self.assertEqual(list(self.directory.iterdir()), [self.zip_path])
+
+    def test_mangadex_cover_and_tracker_are_checked_and_ignored(self) -> None:
+        original = self.fixture(with_companions=True)
+        report = audit_relife_artifacts(self.directory, deep_verify=True, require_complete=False)
+        self.assertEqual(report["cbzArchives"], 2)
+        self.assertEqual(report["pages"], 2)
+        self.assertEqual(self.zip_path.read_bytes(), original)
+
+    def test_fake_tracker_is_rejected(self) -> None:
+        self.fixture(with_companions=True, bad_tracker=True)
+        with self.assertRaisesRegex(ControllerError, "tracker signature"):
+            audit_relife_artifacts(self.directory, require_complete=False)
 
     def test_file_checksum_tampering_detected_only_in_deep_verification(self) -> None:
         self.fixture(corrupted_cbz_checksum=True)
