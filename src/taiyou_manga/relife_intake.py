@@ -14,7 +14,7 @@ import stat
 import tempfile
 import zipfile
 from decimal import Decimal
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .domain import IMAGE_EXTENSIONS, ControllerError
@@ -155,6 +155,60 @@ def _verify_chapter(
             raise ControllerError("Verified CBZ pages disagree with Retriever audit")
 
 
+def _check_companions(
+    zf: zipfile.ZipFile,
+    members: dict[str, zipfile.ZipInfo],
+    reports: list[dict[str, Any]],
+    expected: set[str],
+) -> None:
+    """Allow only the two documented MangaDex downloader helper files.
+
+    The SQLite tracker is never opened as a database. The cover and tracker
+    are not catalogue pages and are never uploaded as source-media records.
+    """
+    roots = {"ReLIFE"}
+    for report in reports:
+        relative_parts = PurePosixPath(report["relativePath"]).parts
+        if len(relative_parts) > 1:
+            roots.add("ReLIFE/" + relative_parts[0])
+    companions = set(members) - expected
+    if len(companions) > 2:
+        raise ControllerError("Too many non-chapter files in ReLIFE artefact")
+    allowed_companions = {f"{root}/{name}" for root in roots for name in ("cover.jpg", "download.db")}
+    if not companions.issubset(allowed_companions):
+        raise ControllerError("Unrecognised source-only ReLIFE helper files")
+    kinds: set[str] = set()
+    for path in companions:
+        info = members[path]
+        kind = PurePosixPath(path).name
+        if kind in kinds:
+            raise ControllerError("Duplicate ReLIFE helper file types")
+        kinds.add(kind)
+        if kind == "cover.jpg":
+            if not 0 < info.file_size <= DEFAULT_LIMITS.max_image_bytes:
+                raise ControllerError("ReLIFE cover image exceeds quota")
+            with zf.open(info) as source:
+                raw = source.read(DEFAULT_LIMITS.max_image_bytes + 1)
+            if len(raw) != info.file_size:
+                raise ControllerError("Truncated ReLIFE cover image")
+            check_bytes(raw, "cover.jpg")
+        elif kind == "download.db":
+            if not 100 <= info.file_size <= 8_000_000:
+                raise ControllerError("ReLIFE download tracker size exceeds quota")
+            count = 0
+            with zf.open(info) as source:
+                header = source.read(16)
+                count += len(header)
+                if header != b"SQLite format 3\x00":
+                    raise ControllerError("Unexpected ReLIFE download tracker signature")
+                while data := source.read(1024 * 1024):
+                    count += len(data)
+                    if count > 8_000_000:
+                        raise ControllerError("ReLIFE download tracker exceeds quota")
+            if count != info.file_size:
+                raise ControllerError("Truncated ReLIFE download tracker")
+
+
 def audit_relife_artifacts(
     directory: Path, *, deep_verify: bool = False, require_complete: bool = True
 ) -> dict[str, Any]:
@@ -238,15 +292,13 @@ def audit_relife_artifacts(
                     raise ControllerError("Page count differs from Retriever audit")
                 allowed = {"relife_quality_audit.json", "SOURCE_AND_RIGHTS.txt"}
                 allowed.update("ReLIFE/" + record["relativePath"] for record in reports)
-                if set(members) != allowed:
-                    unexpected = set(members) - allowed
-                    absent = allowed - set(members)
-                    suffixes = sorted({Path(name).suffix.lower() or "(none)" for name in unexpected})
+                absent = allowed - set(members)
+                if absent:
                     raise ControllerError(
-                        "Unexpected or missing files in GitHub artefact "
-                        f"range {start}-{end}: extra={len(unexpected)}, missing={len(absent)}, "
-                        f"unexpected extensions={suffixes}"
+                        f"Unexpected or missing files in GitHub artefact range {start}-{end}: "
+                        f"missing={len(absent)}"
                     )
+                _check_companions(zf, members, reports, allowed)
                 if members["SOURCE_AND_RIGHTS.txt"].file_size > 16_384:
                     raise ControllerError("Oversized source attribution file")
                 keys.update(included)
