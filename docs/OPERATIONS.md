@@ -9,6 +9,7 @@ python -m taiyou_manga manifest --source "C:\Manga\AuthorisedSource" --output "b
 python -m taiyou_manga verify --bundle "bundles\first"
 python -m taiyou_manga export-csv --bundle "bundles\first" --output "reports\first.csv"
 python -m taiyou_manga plan-upload --bundle "bundles\first" --mock-dir "mock_remote"
+python -m taiyou_manga identity-migrate --state-file ".manga-controller\ids.json" --mapping-json ".manga-controller\rename-plan.json"
 python -m taiyou_manga backup --bundle "bundles\first" --output "backups\first.zip"
 python -m taiyou_manga restore --backup "backups\first.zip" --destination "bundles\recovered"
 ```
