@@ -10,7 +10,6 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import shutil
 import stat
 import tempfile
 import zipfile
@@ -49,7 +48,8 @@ def _chapter_from_name(value: str) -> str:
 def _check_archive_info(member: zipfile.ZipInfo, *, is_dir: bool = False) -> None:
     _safe_member(member.filename[:-1] if is_dir else member.filename)
     mode = stat.S_IFMT(member.external_attr >> 16)
-    if mode not in (0, stat.S_IFDIR) if is_dir else mode not in (0, stat.S_IFREG):
+    allowed_modes = (0, stat.S_IFDIR) if is_dir else (0, stat.S_IFREG)
+    if mode not in allowed_modes:
         raise ControllerError("Artifact contains a symlink or special file")
     if member.flag_bits & 1:
         raise ControllerError("Encrypted artefact entry unsupported")
@@ -98,6 +98,8 @@ def _pages_metadata(record: dict[str, Any]) -> int:
         _safe_member(name)
         if Path(name).suffix.lower() not in IMAGE_EXTENSIONS:
             raise ControllerError("Unsupported audited image extension")
+        if page.get("mimeType") != IMAGE_EXTENSIONS[Path(name).suffix.lower()]:
+            raise ControllerError("Audited image MIME does not match extension")
         if name.casefold() in names:
             raise ControllerError("Duplicate audited page name")
         names.add(name.casefold())
@@ -211,6 +213,8 @@ def audit_relife_artifacts(
                     if not isinstance(relative, str) or not relative.lower().endswith(".cbz"):
                         raise ControllerError("Invalid relative CBZ path in audit")
                     _safe_member(relative)
+                    if record.get("name") != Path(relative).name:
+                        raise ControllerError("Audited CBZ filename mismatch")
                     if not isinstance(checksum, str) or not SHA256_RE.fullmatch(checksum):
                         raise ControllerError("Invalid archived CBZ checksum")
                     if type(size) is not int or not 1 <= size <= DEFAULT_LIMITS.max_archive_bytes:
