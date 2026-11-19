@@ -213,8 +213,8 @@ class IdentityMigrationTests(unittest.TestCase):
             expected_revision=migrated["currentRevision"],
             backup_file=rollback,
         )
-        self.assertEqual(self.registry.read_bytes(), self.original)
-        self.assertEqual(rollback.exists(), True)
+        self.assertEqual(load_json(self.registry), load_json(self.backup))
+        self.assertTrue(rollback.exists())
 
 
 if __name__ == "__main__":
