@@ -83,9 +83,7 @@ def _plan(
         if destination_key in registry:
             raise ControllerError("Migration destination already exists; no overwrite permitted")
         mapped[source_key] = destination_key
-        changes.append(
-            {"kind": kind, "from": old, "to": new, "preservedId": registry[source_key]}
-        )
+        changes.append({"kind": kind, "from": old, "to": new, "preservedId": registry[source_key]})
 
     # A series-folder rename must explicitly cover its chapter paths as one
     # transaction. Otherwise the next import would silently issue fresh chapter IDs.
@@ -95,12 +93,8 @@ def _plan(
         for key in registry:
             if key == f"chapter:{old}" or key.startswith(f"chapter:{old}/"):
                 target = mapped.get(key)
-                if target is None or not (
-                    target == f"chapter:{new}" or target.startswith(f"chapter:{new}/")
-                ):
-                    raise ControllerError(
-                        "Series migration must also remap every chapter within that series"
-                    )
+                if target is None or not (target == f"chapter:{new}" or target.startswith(f"chapter:{new}/")):
+                    raise ControllerError("Series migration must also remap every chapter within that series")
 
     updated = {key: value for key, value in registry.items() if key not in sources}
     for source_key, destination_key in mapped.items():
@@ -172,9 +166,7 @@ def migrate_identities(
                 "moves": changes,
                 "requiresBackupAndApproval": True,
             }
-        if not isinstance(expected_revision, str) or not re.fullmatch(
-            r"[0-9a-f]{64}", expected_revision
-        ):
+        if not isinstance(expected_revision, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_revision):
             raise ControllerError("Approval requires the exact previewed SHA-256 revision")
         if revision != expected_revision:
             raise ControllerError("Stale identity registry revision; preview again")
