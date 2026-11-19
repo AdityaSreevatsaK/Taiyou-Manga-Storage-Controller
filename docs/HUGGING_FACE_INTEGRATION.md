@@ -9,9 +9,9 @@ In the public `AdityaSreevatsaK/Taiyou-Manga-Storage-Controller` repository:
 1. Go to **Settings → Environments → New environment** and create `hf-manga-upload`.
 2. Restrict deployment branches to `master`. Configure required reviewers if practicable; do not enable *Prevent self-review* when you are the only eligible reviewer.
 3. Inside that environment, add the **environment secret** `HF_TOKEN` whose value is the privately created Hugging Face token. Do not put it in a repo file, commit, Actions input, issue or chat. A **fine-grained token scoped to this dataset** is preferable to an unrestricted write token.
-4. Once the workflow is merged, open **Actions → Verify private Manga Hugging Face dataset (read-only) → Run workflow** on `master`. Approve the environment job if requested.
+4. The read-only health workflow runs automatically on its first merge to `master` (and only on subsequent changes to its own workflow file). You can also open **Actions → Verify private Manga Hugging Face dataset (read-only) → Run workflow** on `master`. Approve the environment job if requested.
 
-The workflow runs `hf-health --repo-id AdityaSreevatsaK/Taiyous-Manga` with no write code. It only checks that credentials can **read** the target and that the dataset is **private**. It does not prove the token can write, verify quota, validate media rights or create any HF commit. The secret is not printed. The workflow runs manually and cannot execute on PRs.
+The workflow runs `hf-health --repo-id AdityaSreevatsaK/Taiyous-Manga` with no write code. It only checks that credentials can **read** the target and that the dataset is **private**. It does not prove the token can write, verify quota, validate media rights or create any HF commit. The secret is not printed. The workflow cannot execute on PRs. It also runs on a `master` push changing this workflow file, then remains available for manual re-checks.
 
 ## Next import design and blockers
 
