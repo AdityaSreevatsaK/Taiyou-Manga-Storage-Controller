@@ -12,7 +12,6 @@ import os
 import re
 import shutil
 import sys
-import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -78,7 +77,8 @@ def _list_artifacts(token: str) -> list[dict[str, object]]:
     for item in results:
         if (
             not isinstance(item, dict)
-            or item.get("name") not in EXPECTED_NAMES
+            or not isinstance(item.get("name"), str)
+            or item["name"] not in EXPECTED_NAMES
             or item.get("expired") is not False
             or type(item.get("size_in_bytes")) is not int
             or not 0 < item["size_in_bytes"] <= MAX_ARTIFACT_BYTES
