@@ -80,9 +80,7 @@ class ReLIFEStagingTests(unittest.TestCase):
 
     def test_stages_one_sorted_series_with_provisional_ids(self) -> None:
         self.source()
-        result = stage_relife_candidate(
-            self.artifacts, self.bundle, self.registry, require_complete=False
-        )
+        result = stage_relife_candidate(self.artifacts, self.bundle, self.registry, require_complete=False)
         self.assertEqual(result["status"], "verified-provisional-candidate")
         self.assertEqual((result["series"], result["chapters"], result["pages"]), (1, 2, 2))
         self.assertIs(result["readyForUpload"], False)
