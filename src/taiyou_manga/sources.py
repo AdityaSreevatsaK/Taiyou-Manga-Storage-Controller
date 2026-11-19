@@ -141,17 +141,26 @@ def _infer(root: Path, chapter: Path, *, single: bool = False) -> tuple[str, str
     return series, series, label, volume
 
 
-def _directories(root: Path) -> Iterator[Path]:
-    """Walk one directory at a time, without materialising the entire source tree."""
-    stack = [root]
+def _directories(root: Path, limits: Limits) -> Iterator[Path]:
+    """Bounded directory walk, rejecting suspiciously deep or enormous trees."""
+    stack = [(root, 0)]
+    visited = 0
     while stack:
-        folder = stack.pop()
-        children = sorted(folder.iterdir(), key=lambda path: natural_key(path.name))
+        folder, depth = stack.pop()
+        children = []
+        for child in folder.iterdir():
+            visited += 1
+            if visited > limits.max_source_entries:
+                raise ControllerError("Input source tree exceeds entry quota")
+            children.append(child)
+        children.sort(key=lambda path: natural_key(path.name))
         directories = []
         for child in children:
             _check_path(child, root)
             if child.is_dir():
-                directories.append(child)
+                if depth + 1 > limits.max_source_depth:
+                    raise ControllerError("Input source directory nesting exceeds depth quota")
+                directories.append((child, depth + 1))
         stack.extend(reversed(directories))
         yield folder
 
@@ -167,7 +176,7 @@ def _discover(source: Path, limits: Limits) -> Iterator[ChapterSource]:
         return
     root = source.resolve()
     found = 0
-    for folder in _directories(root):
+    for folder in _directories(root, limits):
         image_files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS]
         if image_files:
             if folder == root:
@@ -197,7 +206,12 @@ def _discover(source: Path, limits: Limits) -> Iterator[ChapterSource]:
 
 def discover(source: Path, limits: Limits = DEFAULT_LIMITS) -> Iterator[ChapterSource]:
     """Validate aggregate quotas while yielding only one decoded chapter at a time."""
-    if limits.max_chapters < 1 or limits.max_total_import_bytes < 1:
+    if (
+        limits.max_chapters < 1
+        or limits.max_total_import_bytes < 1
+        or limits.max_source_depth < 1
+        or limits.max_source_entries < 1
+    ):
         raise ControllerError("Invalid import quotas")
     chapters = 0
     total = 0

@@ -44,6 +44,12 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument(
             "--max-chapters", type=int, default=10000, help="Maximum chapter count (1 to 10000)"
         )
+        command.add_argument(
+            "--max-source-depth", type=int, default=12, help="Maximum directory nesting (1 to 12)"
+        )
+        command.add_argument(
+            "--max-source-entries", type=int, default=100000, help="Maximum filesystem entries (1 to 100000)"
+        )
     for name in ("inventory", "verify"):
         sub.add_parser(name, help="Inspect verified bundle").add_argument(
             "--bundle", required=True, type=_path
@@ -87,9 +93,22 @@ def parser() -> argparse.ArgumentParser:
 
 
 def _import_limits(args: argparse.Namespace) -> Limits:
-    if not 1 <= args.max_total_mb <= 5000 or not 1 <= args.max_chapters <= 10000:
-        raise ControllerError("Import quotas must be within 1-5000 MB and 1-10000 chapters")
-    return Limits(max_total_import_bytes=args.max_total_mb * 1_000_000, max_chapters=args.max_chapters)
+    if (
+        not 1 <= args.max_total_mb <= 5000
+        or not 1 <= args.max_chapters <= 10000
+        or not 1 <= args.max_source_depth <= 12
+        or not 1 <= args.max_source_entries <= 100000
+    ):
+        raise ControllerError(
+            "Import limits must be within 1-5000 MB, 1-10000 chapters, "
+            "1-12 levels and 1-100000 source entries"
+        )
+    return Limits(
+        max_total_import_bytes=args.max_total_mb * 1_000_000,
+        max_chapters=args.max_chapters,
+        max_source_depth=args.max_source_depth,
+        max_source_entries=args.max_source_entries,
+    )
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
