@@ -62,7 +62,9 @@ class DownloadSecurityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder) / "source.zip"
             with patch("urllib.request.urlopen", return_value=io.BytesIO(b"zipdata")):
-                self.assertEqual(_stream_download("https://productionresultssa1.blob.core.windows.net/file", target, 7), 7)
+                self.assertEqual(
+                    _stream_download("https://productionresultssa1.blob.core.windows.net/file", target, 7), 7
+                )
             self.assertEqual(target.read_bytes(), b"zipdata")
 
             mismatch = Path(folder) / "mismatch.zip"
