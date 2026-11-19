@@ -69,3 +69,4 @@ python -m mypy src/taiyou_manga
 GitHub Actions covers Python 3.11/3.12 on Windows and Linux with synthetic fixtures only. No Hugging Face authentication is required in CI.
 
 Software is MIT-licensed; **this licence does not grant any rights to third-party manga artwork**.
+\nIdentity registry recovery after renaming manga folders: [safe migration guide](docs/IDENTITY_MIGRATION.md). By default migration only previews mappings; applying requires an exact registry revision, a new private backup path and `--approve`.\n
