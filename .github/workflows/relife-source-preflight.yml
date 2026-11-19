@@ -35,11 +35,21 @@ jobs:
       - name: Independently verify all 237 CBZs and 5606 pages
         run: |
           python -m taiyou_manga relife-preflight --artifact-dir "${RUNNER_TEMP}/relife-archives"
-      - name: Remove ephemeral media copies
+      - name: Build and verify one private, provisional ReLIFE candidate
+        run: |
+          python -m taiyou_manga relife-stage \
+            --artifact-dir "${RUNNER_TEMP}/relife-archives" \
+            --output "${RUNNER_TEMP}/relife-candidate" \
+            --state-file "${RUNNER_TEMP}/relife-provisional-ids.json"
+          python -m taiyou_manga verify --bundle "${RUNNER_TEMP}/relife-candidate"
+      - name: Remove all ephemeral manga media and provisional IDs
         if: always()
         shell: bash
         run: |
-          rm -rf -- "${RUNNER_TEMP}/relife-archives"
+          rm -rf -- "${RUNNER_TEMP}/relife-archives" \
+            "${RUNNER_TEMP}/relife-candidate" \
+            "${RUNNER_TEMP}/relife-provisional-ids.json" \
+            "${RUNNER_TEMP}/relife-provisional-ids.json.lock"
 
 # This workflow never receives HF_TOKEN, creates a candidate library, uploads
 # an Actions artefact, or commits any media. It checks source integrity only.
