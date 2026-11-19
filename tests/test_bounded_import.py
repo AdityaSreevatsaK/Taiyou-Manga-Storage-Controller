@@ -93,6 +93,41 @@ class BoundedImportTests(unittest.TestCase):
         pages = read_archive(archive)
         self.assertEqual([page.name for page in pages], ["Chapter/001.png"])
 
+    def test_comicinfo_metadata_is_validated_but_not_added_to_pages(self) -> None:
+        archive = self.root / "relife.cbz"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("001.png", original_png())
+            zf.writestr("ComicInfo.xml", b"<ComicInfo><Number>1</Number></ComicInfo>")
+        pages = read_archive(archive)
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(pages[0].name, "001.png")
+        result = build(archive, self.bundle, self.registry)
+        self.assertEqual((result["chapters"], result["pages"]), (1, 1))
+        self.assertEqual(verify_bundle(self.bundle)["pages"], 1)
+
+    def test_cbz_oversized_comicinfo_is_rejected(self) -> None:
+        archive = self.root / "oversized.cbz"
+        with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as zf:
+            zf.writestr("ComicInfo.xml", b"x" * 256_001)
+            zf.writestr("001.png", original_png())
+        with self.assertRaisesRegex(ControllerError, "metadata quota"):
+            read_archive(archive)
+
+    def test_cbz_rejects_duplicate_and_nested_comicinfo(self) -> None:
+        archive = self.root / "duplicate.cbz"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("ComicInfo.xml", b"abc")
+            zf.writestr("comicinfo.xml", b"def")
+            zf.writestr("001.png", original_png())
+        with self.assertRaisesRegex(ControllerError, "Duplicate archive member"):
+            read_archive(archive)
+        nested = self.root / "nested-info.cbz"
+        with zipfile.ZipFile(nested, "w") as zf:
+            zf.writestr("sub/ComicInfo.xml", b"abc")
+            zf.writestr("001.png", original_png())
+        with self.assertRaisesRegex(ControllerError, "Non-image file"):
+            read_archive(nested)
+
     def test_nested_zip_traversal_directories_still_rejected(self) -> None:
         archive = self.root / "bad.cbz"
         with zipfile.ZipFile(archive, "w") as zf:
