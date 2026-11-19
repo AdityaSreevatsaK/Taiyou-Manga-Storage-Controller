@@ -239,7 +239,14 @@ def audit_relife_artifacts(
                 allowed = {"relife_quality_audit.json", "SOURCE_AND_RIGHTS.txt"}
                 allowed.update("ReLIFE/" + record["relativePath"] for record in reports)
                 if set(members) != allowed:
-                    raise ControllerError("Unexpected or missing files in GitHub artefact")
+                    unexpected = set(members) - allowed
+                    absent = allowed - set(members)
+                    suffixes = sorted({Path(name).suffix.lower() or "(none)" for name in unexpected})
+                    raise ControllerError(
+                        "Unexpected or missing files in GitHub artefact "
+                        f"range {start}-{end}: extra={len(unexpected)}, missing={len(absent)}, "
+                        f"unexpected extensions={suffixes}"
+                    )
                 if members["SOURCE_AND_RIGHTS.txt"].file_size > 16_384:
                     raise ControllerError("Oversized source attribution file")
                 keys.update(included)

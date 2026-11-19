@@ -43,3 +43,5 @@ jobs:
 
 # This workflow never receives HF_TOKEN, creates a candidate library, uploads
 # an Actions artefact, or commits any media. It checks source integrity only.
+
+# Rerun the source validation after adding safe, aggregate-only mismatch details.
