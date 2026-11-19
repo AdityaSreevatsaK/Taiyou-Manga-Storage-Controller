@@ -64,7 +64,7 @@ def _list_artifacts(token: str) -> list[dict[str, object]]:
     url = f"https://api.github.com/repos/{SOURCE_REPO}/actions/runs/{RUN_ID}/artifacts?per_page=100"
     request = urllib.request.Request(url, headers=_headers(token))
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed GitHub HTTPS API URL
             payload = json.load(response)
     except (OSError, urllib.error.HTTPError, ValueError) as exc:
         raise SourceAccessError("Cannot list source GitHub Actions artefacts") from exc
@@ -106,10 +106,16 @@ def _signed_download_url(token: str, artifact_id: int) -> str:
 
 
 def _stream_download(blob_url: str, destination: Path, expected_size: int) -> int:
-    request = urllib.request.Request(blob_url, headers={"User-Agent": HEADERS["User-Agent"]})
+    if not _valid_blob_url(blob_url):
+        raise SourceAccessError("Untrusted signed artefact URL")
+    request = urllib.request.Request(  # noqa: S310 - validated HTTPS GitHub-owned blob origin
+        blob_url, headers={"User-Agent": HEADERS["User-Agent"]}
+    )
     written = 0
     try:
-        with urllib.request.urlopen(request, timeout=120) as source, destination.open("xb") as output:
+        with urllib.request.urlopen(request, timeout=120) as source, destination.open(  # noqa: S310
+            "xb"
+        ) as output:
             while data := source.read(1024 * 1024):
                 written += len(data)
                 if written > MAX_ARTIFACT_BYTES:
