@@ -15,6 +15,7 @@ from .domain import ControllerError
 from .identity_migration import migrate_identities
 from .images import Limits
 from .relife_intake import audit_relife_artifacts
+from .relife_stage import stage_relife_candidate
 from .reports import export_inventory_csv
 from .sources import discover
 from .storage import HuggingFaceReadOnly, MockStorage
@@ -92,6 +93,12 @@ def parser() -> argparse.ArgumentParser:
     relife.add_argument(
         "--metadata-only", action="store_true", help="Skip independent media-byte verification"
     )
+    stage = sub.add_parser(
+        "relife-stage", help="Produce a verified private provisional ReLIFE candidate (no uploads)"
+    )
+    stage.add_argument("--artifact-dir", required=True, type=_path)
+    stage.add_argument("--output", required=True, type=_path)
+    stage.add_argument("--state-file", required=True, type=_path)
     health = sub.add_parser(
         "hf-health", help="Optional read-only check of explicitly named private HF dataset"
     )
@@ -175,6 +182,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         )
     if cmd == "relife-preflight":
         return audit_relife_artifacts(args.artifact_dir, deep_verify=not args.metadata_only)
+    if cmd == "relife-stage":
+        return stage_relife_candidate(args.artifact_dir, args.output, args.state_file)
     if cmd == "hf-health":
         return HuggingFaceReadOnly(args.repo_id).health()
     if cmd == "menu":
