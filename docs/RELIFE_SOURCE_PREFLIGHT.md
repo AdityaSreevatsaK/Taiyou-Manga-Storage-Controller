@@ -6,7 +6,7 @@ Source: [ReLIFE run #44547390262](https://github.com/RichardDaffern/Manga-Retrie
 
 ## Automated source check
 
-The Controller's workflow **ReLIFE source artefacts deep preflight (read-only)** runs once after its workflow file is merged to `master`, and can be rerun from the Actions tab. It:
+The Controller's workflow **ReLIFE source artefacts deep preflight (read-only)** runs after a change to its workflow file is merged to `master`, and can be rerun from the Actions tab. It:
 
 1. Uses its short-lived `GITHUB_TOKEN` to request exactly the 12 `ReLIFE-Original-Quality-Ch*-*` source artefacts from run #44547390262.
 2. Follows only validated GitHub-owned HTTPS signed download origins, without forwarding the GitHub token to storage.
@@ -14,7 +14,7 @@ The Controller's workflow **ReLIFE source artefacts deep preflight (read-only)**
 4. Runs `python -m taiyou_manga relife-preflight --artifact-dir "$RUNNER_TEMP/relife-archives"`. This verifies 222 integer chapter identities, the 15 expected decimal-numbered extras, the expected 5,606 pages, and every CBZ SHA-256/page hash/size/dimension.
 5. Deletes temporary downloads regardless of success or failure.
 
-**Important:** Results may still reveal that the source files are inconsistent. The Retriever jobs reported 237 CBZs and 5,606 pages, but those logs are not a substitute for the independent audit. The original source permission/rights statement does not confer upload permission.
+**Important:** Results may still reveal that the source files are inconsistent. The Retriever jobs reported 237 CBZs and 5,606 pages, but those logs are not a substitute for the independent audit. The audit explicitly checks the MangaDex downloader's auxiliary `cover.jpg` image and `download.db` SQLite tracking file without treating either as a CBZ chapter or an authorisation record. Both are discarded with the temporary source artefacts. The original source permission/rights statement does not confer upload permission.
 
 If GitHub's repository-scoped `GITHUB_TOKEN` cannot fetch the other public repository's artefact ZIPs, the owner will need a separate fine-grained GitHub token restricted to `RichardDaffern/Manga-Retriever` with `Actions: read`; do **not** use an unrestricted personal access token or the HF token for this purpose.
 
