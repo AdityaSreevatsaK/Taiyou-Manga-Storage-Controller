@@ -70,3 +70,4 @@ GitHub Actions covers Python 3.11/3.12 on Windows and Linux with synthetic fixtu
 
 Software is MIT-licensed; **this licence does not grant any rights to third-party manga artwork**.
 \nIdentity registry recovery after renaming manga folders: [safe migration guide](docs/IDENTITY_MIGRATION.md). By default migration only previews mappings; applying requires an exact registry revision, a new private backup path and `--approve`.\n
+ReLIFE Actions source media can be **audited without upload** using the protected local CLI `relife-preflight` or the isolated [ReLIFE source preflight workflow](docs/RELIFE_SOURCE_PREFLIGHT.md). It does not use Hugging Face write credentials.
