@@ -1,7 +1,34 @@
-# Hugging Face dataset integration (design only)
+# Hugging Face dataset integration (manual read-only readiness gate)
 
-**No dataset is created or configured, and no remote writes are enabled.** Read-only health: install `pip install -e ".[huggingface]"`, authenticate locally if appropriate with `hf auth login`, then run `python -m taiyou_manga hf-health --repo-id OWNER/PRIVATE-MANGA-DATASET`. The client refuses public datasets. It does not print tokens or private titles.
+Owner-designated dataset: `AdityaSreevatsaK/Taiyous-Manga`. **Private status and token access remain to be verified**, and **no media upload or other remote mutation is enabled** by this change.
 
-Verified against [official HfApi documentation](https://huggingface.co/docs/huggingface_hub/main/en/package_reference/hf_api) and [commit upload guide](https://huggingface.co/docs/huggingface_hub/main/guides/upload) on 18 November 2026: `HfApi.dataset_info()` can retrieve a revision; `HfApi.create_commit` accepts `repo_type="dataset"`, `CommitOperationAdd` and `parent_commit` for optimistic concurrency. These are **future adapter inputs only**, not operational upload permission. A later implementation must guard metadata and original media in a single expected-parent operation or use a staged, recoverable protocol. Simultaneous writers must fail on mismatched revision, never overwrite silently. Retry only verified idempotent operations.
+## Your GitHub setup
 
-Open issues: private-data quota/size, account permission and provenance, media reader's server-side auth, private download and egress behaviour, refresh token handling, asset-path layout, cache/offline policy, backups and rate limits. Keep personal ratings/progress separate from manga originals. Local mocks never contain real network credentials. HF errors should distinguish offline, unauthorised, missing dataset, revision conflict and content corruption.
+In the public `AdityaSreevatsaK/Taiyou-Manga-Storage-Controller` repository:
+
+1. Go to **Settings → Environments → New environment** and create `hf-manga-upload`.
+2. Restrict deployment branches to `master`. Configure required reviewers if practicable; do not enable *Prevent self-review* when you are the only eligible reviewer.
+3. Inside that environment, add the **environment secret** `HF_TOKEN` whose value is the privately created Hugging Face token. Do not put it in a repo file, commit, Actions input, issue or chat. A **fine-grained token scoped to this dataset** is preferable to an unrestricted write token.
+4. Once the workflow is merged, open **Actions → Verify private Manga Hugging Face dataset (read-only) → Run workflow** on `master`. Approve the environment job if requested.
+
+The workflow runs `hf-health --repo-id AdityaSreevatsaK/Taiyous-Manga` with no write code. It only checks that credentials can **read** the target and that the dataset is **private**. It does not prove the token can write, verify quota, validate media rights or create any HF commit. The secret is not printed. The workflow runs manually and cannot execute on PRs.
+
+## Next import design and blockers
+
+The source run [Manga-Retriever #44547390262](https://github.com/RichardDaffern/Manga-Retriever/actions/runs/44547390262) contains **12 seven-day artefacts**, approximately **1.35 GB combined**, with **237 audited CBZ archives and 5,606 audited pages** in 12 batches nominally covering 222 numbered chapters. Extra or duplicate releases must be resolved by source chapter identity; passing per-batch CBZ counts is not proof of a complete unique series. The source artefacts expire on **26 November 2026**. Source CBZs can contain `ComicInfo.xml`, which the current strict controller ZIP import rejects. An import must validate those XML metadata entries safely and map the CBZs into one series.
+
+The Controller candidate v1 bundle is **not yet an approved persisted HF dataset schema**. Before real writes, confirm (a) the right to store the particular English scans remotely, (b) a verified complete chapter map and original-byte digests, (c) a private, revision-guarded dataset commit and explicit metadata/rights schema, (d) backup/recovery and safe retries, and (e) that the downstream Manga Library private reader and stable IDs can consume the persisted layout.
+
+A GitHub Actions upload running in this Controller repository cannot assume its default `GITHUB_TOKEN` can download **another repository's** workflow artefacts. It may need a **separate fine-grained GitHub token restricted to `RichardDaffern/Manga-Retriever` with Actions:read**, held as a protected environment secret, or a separately authorised transfer strategy. No such additional secret is required for the read-only dataset health check. Do not place the Hugging Face write token in the public Retriever repository.
+
+Remote writes must use authenticated HF commits with expected-parent revision checks, reject conflicting overwrites/deletes and be staged for recovery. The user-approved destination and secret setup are *configuration approvals*, not verification of rights to copy third-party scanlations to another platform.
+
+## Local read-only alternative
+
+Install `pip install -e ".[huggingface]"`, authenticate locally with `hf auth login` if appropriate, then run:
+
+```powershell
+python -m taiyou_manga hf-health --repo-id AdityaSreevatsaK/Taiyous-Manga
+```
+
+The output includes only the dataset revision and private/read-only status, not source titles or credentials.
