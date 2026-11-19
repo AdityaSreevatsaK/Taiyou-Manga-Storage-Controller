@@ -113,9 +113,8 @@ def _stream_download(blob_url: str, destination: Path, expected_size: int) -> in
     )
     written = 0
     try:
-        with urllib.request.urlopen(request, timeout=120) as source, destination.open(  # noqa: S310
-            "xb"
-        ) as output:
+        source_context = urllib.request.urlopen(request, timeout=120)  # noqa: S310 - safe blob URL
+        with source_context as source, destination.open("xb") as output:
             while data := source.read(1024 * 1024):
                 written += len(data)
                 if written > MAX_ARTIFACT_BYTES:
