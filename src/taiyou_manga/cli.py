@@ -73,9 +73,7 @@ def parser() -> argparse.ArgumentParser:
     identity = sub.add_parser(
         "identity-migrate", help="Preview or approve an explicit stable-ID source-path migration"
     )
-    identity.add_argument(
-        "--state-file", type=_path, default=Path(".manga-controller/ids.json")
-    )
+    identity.add_argument("--state-file", type=_path, default=Path(".manga-controller/ids.json"))
     identity.add_argument("--mapping-json", required=True, type=_path)
     identity.add_argument("--expected-revision", help="Exact SHA-256 from the migration preview")
     identity.add_argument("--backup", type=_path, help="New unused local backup path (required to apply)")
