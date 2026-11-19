@@ -115,9 +115,7 @@ class IdentityMigrationTests(unittest.TestCase):
         with self.assertRaisesRegex(ControllerError, "exact previewed"):
             migrate_identities(self.registry, self.mapping, approve=True, backup_file=self.backup)
         with self.assertRaisesRegex(ControllerError, "unused local backup"):
-            migrate_identities(
-                self.registry, self.mapping, approve=True, expected_revision=revision
-            )
+            migrate_identities(self.registry, self.mapping, approve=True, expected_revision=revision)
         self.assertEqual(self.registry.read_bytes(), self.original)
 
     def test_series_rename_must_include_every_chapter(self) -> None:
@@ -127,9 +125,7 @@ class IdentityMigrationTests(unittest.TestCase):
         self.assertEqual(self.registry.read_bytes(), self.original)
 
     def test_existing_destination_refuses_overwrite(self) -> None:
-        self.make_moves(
-            [{"kind": "series", "from": "Signal Garden", "to": "Moonlit Courier"}]
-        )
+        self.make_moves([{"kind": "series", "from": "Signal Garden", "to": "Moonlit Courier"}])
         with self.assertRaisesRegex(ControllerError, "destination already exists"):
             migrate_identities(self.registry, self.mapping)
 
@@ -207,10 +203,7 @@ class IdentityMigrationTests(unittest.TestCase):
             expected_revision=revision,
             backup_file=self.backup,
         )
-        inverse = [
-            {"kind": c["kind"], "from": c["to"], "to": c["from"]}
-            for c in changes
-        ]
+        inverse = [{"kind": c["kind"], "from": c["to"], "to": c["from"]} for c in changes]
         self.make_moves(inverse)
         rollback = self.root / "private" / "before-rollback.json"
         migrate_identities(
