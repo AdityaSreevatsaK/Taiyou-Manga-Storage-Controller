@@ -174,9 +174,7 @@ def _check_companions(
     companions = set(members) - expected
     if len(companions) > 2:
         raise ControllerError("Too many non-chapter files in ReLIFE artefact")
-    allowed_companions = {
-        f"{root}/{name}" for root in roots for name in ("cover.jpg", "download.db")
-    }
+    allowed_companions = {f"{root}/{name}" for root in roots for name in ("cover.jpg", "download.db")}
     if not companions.issubset(allowed_companions):
         raise ControllerError("Unrecognised source-only ReLIFE helper files")
     kinds: set[str] = set()
