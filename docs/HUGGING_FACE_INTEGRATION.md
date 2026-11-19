@@ -32,3 +32,7 @@ python -m taiyou_manga hf-health --repo-id AdityaSreevatsaK/Taiyous-Manga
 ```
 
 The output includes only the dataset revision and private/read-only status, not source titles or credentials.
+
+## Read-only artefact validation
+
+See [ReLIFE source preflight](RELIFE_SOURCE_PREFLIGHT.md). The Controller can temporarily download and independently audit the source run in a separate GitHub Actions workflow using its ephemeral token, if cross-repo read access permits. That workflow never reads `HF_TOKEN` or uploads original content. Real remote write operations still require separate rights, backup, layout and revision-gate approval.
