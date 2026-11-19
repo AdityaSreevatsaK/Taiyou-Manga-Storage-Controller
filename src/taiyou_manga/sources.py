@@ -53,7 +53,7 @@ def read_archive(path: Path, limits: Limits = DEFAULT_LIMITS) -> tuple[RawPage, 
             raise ControllerError("Archive compressed size exceeds quota")
         with zipfile.ZipFile(path) as zf:
             entries = zf.infolist()
-            if not 1 <= len(entries) <= limits.max_pages:
+            if not 1 <= len(entries) <= limits.max_pages + 1:
                 raise ControllerError("Archive entry count exceeds limit")
             names: set[str] = set()
             total = 0
@@ -73,6 +73,17 @@ def read_archive(path: Path, limits: Limits = DEFAULT_LIMITS) -> tuple[RawPage, 
                 names.add(folded)
                 if member.flag_bits & 1:
                     raise ControllerError("Encrypted archives are unsupported")
+                if member.filename.casefold() == "comicinfo.xml":
+                    # Standard ComicRack CBZ metadata may be present, but it is
+                    # never parsed, trusted as rights evidence or published.
+                    if not 0 < member.file_size <= 256_000:
+                        raise ControllerError("ComicInfo.xml exceeds metadata quota")
+                    if member.file_size > max(member.compress_size, 1) * limits.max_ratio:
+                        raise ControllerError("Suspicious metadata compression ratio")
+                    with zf.open(member) as handle:
+                        if len(handle.read(256_001)) != member.file_size:
+                            raise ControllerError("Unexpected ComicInfo.xml size")
+                    continue
                 if not 0 < member.file_size <= limits.max_image_bytes:
                     raise ControllerError("Archive member file-size limit exceeded")
                 if member.file_size > max(member.compress_size, 1) * limits.max_ratio:
