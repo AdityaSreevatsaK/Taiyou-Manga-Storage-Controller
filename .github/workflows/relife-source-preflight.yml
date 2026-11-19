@@ -1,0 +1,45 @@
+name: ReLIFE source artefacts deep preflight (read-only)
+
+on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/relife-source-preflight.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: relife-source-preflight
+  cancel-in-progress: false
+
+jobs:
+  validate-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install offline Controller and Pillow
+        run: |
+          python -m pip install --upgrade "setuptools>=84.1.0"
+          python -m pip install -e .
+      - name: Fetch source artefacts to temporary runner storage only
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/fetch_relife_actions_artifacts.py --output "${RUNNER_TEMP}/relife-archives"
+      - name: Independently verify all 237 CBZs and 5606 pages
+        run: |
+          python -m taiyou_manga relife-preflight --artifact-dir "${RUNNER_TEMP}/relife-archives"
+      - name: Remove ephemeral media copies
+        if: always()
+        shell: bash
+        run: |
+          rm -rf -- "${RUNNER_TEMP}/relife-archives"
+
+# This workflow never receives HF_TOKEN, creates a candidate library, uploads
+# an Actions artefact, or commits any media. It checks source integrity only.
