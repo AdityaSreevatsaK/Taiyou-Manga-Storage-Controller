@@ -1,0 +1,36 @@
+name: ReLIFE source-artifact access probe (no media download)
+
+on:
+  push:
+    paths:
+      - .github/workflows/relife-access-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cross-repo-read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Test HEAD-only cross-repository source artefact permission
+        shell: bash
+        env:
+          GH_CURRENT_REPO_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Do not follow redirects, download CBZ bytes, or expose the bearer token.
+          code=$(curl --silent --show-error --head --max-time 20 \
+            --output /dev/null --write-out '%{http_code}' \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer ${GH_CURRENT_REPO_TOKEN}" \
+            'https://api.github.com/repos/RichardDaffern/Manga-Retriever/actions/artifacts/14552630278/zip')
+          case "${code}" in
+            302)
+              echo "::notice::Cross-repo artifact access works using this repository's GITHUB_TOKEN"
+              ;;
+            *)
+              echo "::notice::Cross-repo artifact HEAD returned HTTP ${code}. A source-scoped Actions:read token may be required."
+              ;;
+          esac
