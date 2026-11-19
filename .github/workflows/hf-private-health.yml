@@ -1,6 +1,9 @@
 name: Verify private Manga Hugging Face dataset (read-only)
 
 on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/hf-private-health.yml']
   workflow_dispatch:
 
 permissions:
