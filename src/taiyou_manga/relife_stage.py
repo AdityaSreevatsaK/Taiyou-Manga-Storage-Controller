@@ -66,9 +66,7 @@ def stage_relife_candidate(
         raise ControllerError("Output and identity registry must be outside the source artefacts")
     if registry_file.resolve().is_relative_to(output.resolve()):
         raise ControllerError("Identity registry must be outside candidate output")
-    validation = audit_relife_artifacts(
-        artifact_dir, deep_verify=True, require_complete=require_complete
-    )
+    validation = audit_relife_artifacts(artifact_dir, deep_verify=True, require_complete=require_complete)
     if validation["status"] != "verified-content" or validation["readyForUpload"]:
         raise ControllerError("ReLIFE source validation did not meet local integrity gate")
     output.parent.mkdir(parents=True, exist_ok=True)
