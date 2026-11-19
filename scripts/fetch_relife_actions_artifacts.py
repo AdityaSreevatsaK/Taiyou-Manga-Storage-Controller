@@ -20,8 +20,7 @@ from pathlib import Path
 RUN_ID = 44547390262
 SOURCE_REPO = "RichardDaffern/Manga-Retriever"
 EXPECTED_NAMES = frozenset(
-    f"ReLIFE-Original-Quality-Ch{start}-{min(222, start + 19)}"
-    for start in range(1, 222, 20)
+    f"ReLIFE-Original-Quality-Ch{start}-{min(222, start + 19)}" for start in range(1, 222, 20)
 )
 MAX_ARTIFACT_BYTES = 500_000_000
 MAX_TOTAL_BYTES = 3_000_000_000
