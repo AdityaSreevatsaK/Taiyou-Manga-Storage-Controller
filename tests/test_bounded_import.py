@@ -62,6 +62,33 @@ class BoundedImportTests(unittest.TestCase):
         with self.assertRaisesRegex(ControllerError, "Chapter folder total size"):
             read_folder(folder, self.source, Limits(max_archive_bytes=100))
 
+    def test_nested_directory_depth_quota_blocks_publication(self) -> None:
+        with self.assertRaisesRegex(ControllerError, "directory nesting exceeds depth quota"):
+            build(self.source, self.bundle, self.registry, limits=Limits(max_source_depth=2))
+        self.assertFalse(self.bundle.exists())
+        self.assertFalse(self.registry.exists())
+
+    def test_source_tree_entry_quota_prevents_large_scans(self) -> None:
+        with self.assertRaisesRegex(ControllerError, "source tree exceeds entry quota"):
+            list(discover(self.source, Limits(max_source_entries=3)))
+        with self.assertRaisesRegex(ControllerError, "source tree exceeds entry quota"):
+            build(self.source, self.bundle, self.registry, limits=Limits(max_source_entries=3))
+        self.assertFalse(self.bundle.exists())
+        self.assertFalse(self.registry.exists())
+
+    def test_minimum_directory_depth_can_be_allowed(self) -> None:
+        result = build(self.source, self.bundle, self.registry, limits=Limits(max_source_depth=3))
+        self.assertEqual(result["chapters"], 4)
+        self.assertEqual(verify_bundle(self.bundle)["pages"], 12)
+
+    def test_cli_rejects_unbounded_traversal_options(self) -> None:
+        self.assertEqual(
+            main(["scan", "--source", str(self.source), "--max-source-depth", "13"]), 2
+        )
+        self.assertEqual(
+            main(["scan", "--source", str(self.source), "--max-source-entries", "0"]), 2
+        )
+
     def test_standard_cbz_directory_entries_are_accepted(self) -> None:
         archive = self.root / "nested.cbz"
         with zipfile.ZipFile(archive, "w") as zf:
