@@ -202,9 +202,7 @@ def _check_companions(
                     detected = probe.format
             except (OSError, SyntaxError, ValueError) as exc:
                 raise ControllerError("Invalid auxiliary ReLIFE cover image") from exc
-            suffix = {"PNG": ".png", "JPEG": ".jpg", "WEBP": ".webp", "AVIF": ".avif"}.get(
-                detected or ""
-            )
+            suffix = {"PNG": ".png", "JPEG": ".jpg", "WEBP": ".webp", "AVIF": ".avif"}.get(detected or "")
             if suffix is None:
                 raise ControllerError("Unsupported auxiliary ReLIFE cover image format")
             try:
