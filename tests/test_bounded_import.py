@@ -82,12 +82,8 @@ class BoundedImportTests(unittest.TestCase):
         self.assertEqual(verify_bundle(self.bundle)["pages"], 12)
 
     def test_cli_rejects_unbounded_traversal_options(self) -> None:
-        self.assertEqual(
-            main(["scan", "--source", str(self.source), "--max-source-depth", "13"]), 2
-        )
-        self.assertEqual(
-            main(["scan", "--source", str(self.source), "--max-source-entries", "0"]), 2
-        )
+        self.assertEqual(main(["scan", "--source", str(self.source), "--max-source-depth", "13"]), 2)
+        self.assertEqual(main(["scan", "--source", str(self.source), "--max-source-entries", "0"]), 2)
 
     def test_standard_cbz_directory_entries_are_accepted(self) -> None:
         archive = self.root / "nested.cbz"
