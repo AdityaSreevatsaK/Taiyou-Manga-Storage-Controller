@@ -95,7 +95,7 @@ class ReLIFEIntakeTests(unittest.TestCase):
                 with Image.new("RGB", (32, 40), (30, 70, 120)) as picture:
                     picture.save(cover, format="JPEG")
                 outer.writestr("ReLIFE/cover.jpg", cover.getvalue())
-                header = b"malformed tracker" if bad_tracker else b"SQLite format 3\\x00"
+                header = b"malformed tracker" if bad_tracker else b"SQLite format 3\x00"
                 outer.writestr("ReLIFE/download.db", header + bytes(120))
             for name, payload in embedded.items():
                 outer.writestr(name, payload)
