@@ -17,7 +17,7 @@ Act as the **Principal Python Engineer, Storage Architect, Hugging Face Integrat
 - Verified full-media ZIP backups, preview-only restoration and new-destination restoration exist. A catalogue export is **not** a complete media backup.
 - `hf-health` is optional and strictly read-only; HF dataset creation, upload, mutation and deletion are disabled.
 - JSON inventory and private, Excel-safe chapter-level CSV exports are available.
-- Import discovery and bundle generation process chapters incrementally, and enforce 500 MB folder/archive chapter bounds plus 5,000 MB/10,000-chapter default total limits. `scan` and `manifest` accept `--max-total-mb` and `--max-chapters` within these ceilings. Standard safe CBZ directory entries are accepted.
+- Explicit, approval-gated source-path identity migration preserves series/chapter IDs after folder moves. Requires preview SHA-256, exact revision, private backup and complete series/chapter mapping. See [identity migration guide](IDENTITY_MIGRATION.md).\n- Import discovery and bundle generation process chapters incrementally, and enforce 500 MB folder/archive chapter bounds plus 5,000 MB/10,000-chapter default total limits. `scan` and `manifest` accept `--max-total-mb` and `--max-chapters` within these ceilings. Standard safe CBZ directory entries are accepted.
 - Rights are *declared*, not legally adjudicated; no real source media has been imported.
 
 Merged improvements, all validated via GitHub Actions:
@@ -54,14 +54,14 @@ Run `python -m taiyou_manga menu` or `00_manga_storage_menu.cmd` for the interac
 ## Technical boundaries
 
 - The Manga Library's `src/domain/types.ts`, `src/domain/validation.ts`, `docs/DATA_CONTRACTS.md` and **proposed** ADR-006 are the compatibility reference. The controller's candidate bundle is **not** an approved persisted Hugging Face schema.
-- Identity registry `.manga-controller/ids.json` must be backed up and kept private; unexpected key types, case-colliding keys and duplicate IDs are rejected before the build. The fully staged bundle is verified before identities are persisted or the output becomes visible. Moving or renaming source paths needs a deliberate identity-remapping plan; otherwise IDs can change. If a crashed import leaves `ids.json.lock`, inspect it before manual recovery.
+- Identity registry `.manga-controller/ids.json` must be backed up and kept private; unexpected key types, case-colliding keys and duplicate IDs are rejected before the build. The fully staged bundle is verified before identities are persisted or the output becomes visible. Use the new `identity-migrate` preview and optional approval/backup when moving or renaming source paths; never assume IDs survive a move automatically. If a crashed import leaves `ids.json.lock`, inspect it before manual recovery.
 - Mock content-addressed revisions now include catalogue, manifests, inventory and rights evidence as well as pages. Old disposable mock snapshots use a different hash scheme and are not silently migrated; start a fresh disposable mock after separately retaining any needed local data.
 - Media never shares the Novels dataset. Personal reading progress, ratings, tags and annotations remain separate from media.
 - Use only lawfully held or licensed images; never add public copyrighted test images or unapproved provider scraping.
 
 ## Next independent development
 
-Prioritise: (1) configurable source mapping without assuming supplied folders or archive naming, (2) safe source-path identity reconciliation/migration with preview and rollback, (3) more granular image/resource ceilings and deep-tree traversal limits, (4) image decoding isolation and AVIF portability tests, (5) deeper backup and interrupted-operation fault injection, and (6) read-only HF manifest/inventory/download adapter tests with no remote writes. Keep each in a focused PR with Windows/Linux CI.
+Prioritise: (1) configurable source mapping without assuming supplied folders or archive naming, (2) optional safe identity matching proposals verified against media without auto-apply, (3) more granular image/resource ceilings and deep-tree traversal limits, (4) image decoding isolation and AVIF portability tests, (5) deeper backup and interrupted-operation fault injection, and (6) read-only HF manifest/inventory/download adapter tests with no remote writes. Keep each in a focused PR with Windows/Linux CI.
 
 **Owner approvals still required before remote writes:** actual manga image structure, rights provenance and permitted content, exact private HF dataset and whether it should be created, storage layout/reader adapter, quotas and retention, private owner authorisation, revision-guarded commit protocol, rollback/backups and cloud security. Do not choose these implicitly.
 

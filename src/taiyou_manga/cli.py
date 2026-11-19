@@ -12,6 +12,7 @@ from .backup import create_backup, restore_backup, verify_backup
 from .builder import build, load_json, verify_bundle
 from .demo import create_demo
 from .domain import ControllerError
+from .identity_migration import migrate_identities
 from .images import Limits
 from .reports import export_inventory_csv
 from .sources import discover
@@ -69,6 +70,14 @@ def parser() -> argparse.ArgumentParser:
     restore.add_argument("--backup", required=True, type=_path)
     restore.add_argument("--destination", required=True, type=_path)
     restore.add_argument("--approve", action="store_true")
+    identity = sub.add_parser(
+        "identity-migrate", help="Preview or approve an explicit stable-ID source-path migration"
+    )
+    identity.add_argument("--state-file", type=_path, default=Path(".manga-controller/ids.json"))
+    identity.add_argument("--mapping-json", required=True, type=_path)
+    identity.add_argument("--expected-revision", help="Exact SHA-256 from the migration preview")
+    identity.add_argument("--backup", type=_path, help="New unused local backup path (required to apply)")
+    identity.add_argument("--approve", action="store_true")
     health = sub.add_parser(
         "hf-health", help="Optional read-only check of explicitly named private HF dataset"
     )
@@ -129,6 +138,14 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         return verify_backup(args.backup)
     if cmd == "restore":
         return restore_backup(args.backup, args.destination, args.approve)
+    if cmd == "identity-migrate":
+        return migrate_identities(
+            args.state_file,
+            args.mapping_json,
+            approve=args.approve,
+            expected_revision=args.expected_revision,
+            backup_file=args.backup,
+        )
     if cmd == "hf-health":
         return HuggingFaceReadOnly(args.repo_id).health()
     if cmd == "menu":
@@ -191,6 +208,16 @@ def interactive_menu() -> None:
                 input("Bundle folder: "),
                 "--output",
                 input("New CSV report path: "),
+            ],
+        ),
+        "10": (
+            "Preview local identity migration",
+            lambda: [
+                "identity-migrate",
+                "--state-file",
+                input("Existing registry (ids.json): "),
+                "--mapping-json",
+                input("Private mapping JSON path: "),
             ],
         ),
         "0": ("Exit", lambda: []),
