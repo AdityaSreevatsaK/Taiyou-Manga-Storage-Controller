@@ -27,6 +27,8 @@ class Limits:
     max_ratio: int = 100
     max_chapters: int = 10_000
     max_total_import_bytes: int = 5_000_000_000
+    max_source_depth: int = 12
+    max_source_entries: int = 100_000
 
 
 DEFAULT_LIMITS = Limits()
