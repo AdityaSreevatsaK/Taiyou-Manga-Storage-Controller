@@ -10,6 +10,8 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +30,7 @@ MEDIA_RE = re.compile(
 MAX_SERIES = 10000
 MAX_CHAPTERS_PER_SERIES = 2000
 MAX_LIBRARY_BYTES = 4 * 1024 * 1024
+SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 def _json_bytes(doc: object) -> bytes:
@@ -51,6 +54,9 @@ def validate_entries(raw: object) -> list[dict[str, Any]]:
         title = entry.get("title")
         if not isinstance(title, str) or not 1 <= len(title.strip()) <= 180:
             raise ControllerError("Missing or oversized manga title")
+        slug = entry.get("slug")
+        if slug is not None and (not isinstance(slug, str) or len(slug) > 100 or not SLUG_RE.fullmatch(slug)):
+            raise ControllerError("Invalid immutable manga permalink slug")
         if sid in seen_series:
             raise ControllerError("Duplicate manga series identifier")
         seen_series.add(sid)
@@ -78,6 +84,12 @@ def validate_entries(raw: object) -> list[dict[str, Any]]:
             if cid in seen_chapters:
                 raise ControllerError("Duplicate cross-series manga chapter ID")
             seen_chapters.add(cid)
+            chapter_slug = chapter.get("slug")
+            if chapter_slug is not None and (
+                not isinstance(chapter_slug, str) or len(chapter_slug) > 100
+                or not SLUG_RE.fullmatch(chapter_slug)
+            ):
+                raise ControllerError("Invalid immutable manga chapter permalink slug")
             label = chapter.get("label")
             if not isinstance(label, str) or not 1 <= len(label.strip()) <= 120:
                 raise ControllerError("Invalid chapter label")
@@ -102,8 +114,72 @@ def validate_library(raw: object) -> list[dict[str, Any]]:
     return validate_entries(raw["entries"])
 
 
-def canonical_library(entries: object) -> dict[str, Any]:
-    return {"schemaVersion": 1, "mediaKind": "manga", "entries": validate_entries(entries)}
+def _slug(value: str, opaque_id: str) -> str:
+    name = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii").lower()
+    name = re.sub(r"[^a-z0-9]+", "-", name).strip("-")[:100].rstrip("-")
+    return name or ("item-" + re.sub(r"[^a-z0-9]", "", opaque_id[-8:].lower()))
+
+
+def _allocate(candidate: str, identifier: str, used: set[str]) -> str:
+    if candidate not in used:
+        used.add(candidate)
+        return candidate
+    suffix = re.sub(r"[^a-z0-9]", "", identifier[-8:].lower())
+    proposal = (candidate[:91].rstrip("-") + "-" + suffix)[:100]
+    if not SLUG_RE.fullmatch(proposal) or proposal in used:
+        raise ControllerError("Duplicate or unsafe catalogue permalink")
+    used.add(proposal)
+    return proposal
+
+
+def canonical_library(
+    entries: object, previous_library: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Stamp permanent readable slugs without changing IDs or source metadata.
+
+    A later title/chapter rename reuses slugs from the earlier canonical library.
+    Existing slugs may never be silently rewritten. This only builds local JSON;
+    it never modifies a private Hugging Face dataset by itself.
+    """
+    source = deepcopy(validate_entries(entries))
+    prior = validate_library(previous_library) if previous_library is not None else []
+    prior_entries = {e["id"]: e for e in prior}
+    reserved_series = set()
+    for entry in source:
+        original = prior_entries.get(entry["id"], {})
+        preserved = original.get("slug")
+        explicit = entry.get("slug")
+        if preserved is not None and explicit is not None and preserved != explicit:
+            raise ControllerError("Cannot change existing immutable manga permalink")
+        value = preserved or explicit
+        if value is not None:
+            if value in reserved_series:
+                raise ControllerError("Duplicate manga permalink")
+            reserved_series.add(value)
+            entry["slug"] = value
+    for entry in source:
+        if "slug" not in entry:
+            entry["slug"] = _allocate(_slug(entry["title"], entry["id"]), entry["id"], reserved_series)
+        old_chapters = {
+            chapter["id"]: chapter for chapter in prior_entries.get(entry["id"], {}).get("chapters", [])
+        }
+        used_chapters: set[str] = set()
+        for chapter in entry["chapters"]:
+            preserved = old_chapters.get(chapter["id"], {}).get("slug")
+            explicit = chapter.get("slug")
+            if preserved is not None and explicit is not None and explicit != preserved:
+                raise ControllerError("Cannot change existing immutable chapter permalink")
+            value = preserved or explicit
+            if value is not None:
+                if value in used_chapters:
+                    raise ControllerError("Duplicate chapter permalink")
+                used_chapters.add(value)
+                chapter["slug"] = value
+        for chapter in entry["chapters"]:
+            if "slug" not in chapter:
+                chapter["slug"] = _allocate(_slug(chapter["label"], chapter["id"]),
+                                            chapter["id"], used_chapters)
+    return {"schemaVersion": 1, "mediaKind": "manga", "entries": validate_entries(source)}
 
 
 def _migration_maps(
