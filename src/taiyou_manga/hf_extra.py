@@ -125,10 +125,10 @@ def local_download_cleanup(
         if file.is_file() and file.name.endswith(".part") and file.stat().st_mtime < cutoff:
             candidates.append(file)
     files = [{"path": file.name, "size": file.stat().st_size} for file in candidates]
-    summary = {
+    summary: dict[str, object] = {
         "status": "preview" if not apply else "local-temp-cleaned",
         "temporaryFiles": len(candidates),
-        "bytes": sum(r["size"] for r in files),
+        "bytes": sum(int(r["size"]) for r in files),
         "remoteFilesDeleted": 0,
         "mangaArchivesDeleted": 0,
         "files": files,
