@@ -14,9 +14,7 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
-from .domain import ControllerError
-from .relife_intake import EXPECTED_PAGES as RELIFE_EXPECTED_PAGES
-from .relife_stage import _stable_registry as _relife_registry
+from taiyou_manga.domain import ControllerError
 
 SOURCE_REPO = "RichardDaffern/Manga-Retriever"
 
