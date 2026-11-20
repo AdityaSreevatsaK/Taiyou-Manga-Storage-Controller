@@ -60,9 +60,7 @@ def _page_identity(record: dict[str, Any]) -> tuple[tuple[str, str, int], ...]:
     return tuple(result)
 
 
-def stage_selected_manga(
-    slug: str, artifact_dir: Path, output: Path, registry: Path
-) -> dict[str, object]:
+def stage_selected_manga(slug: str, artifact_dir: Path, output: Path, registry: Path) -> dict[str, object]:
     """Fail closed if one numbered chapter is missing. Retain all unique bonuses."""
     title = selected_title(slug)
     if artifact_dir.is_symlink() or not artifact_dir.is_dir():
@@ -95,7 +93,8 @@ def stage_selected_manga(
             if outer.stat().st_size > 500_000_000:
                 raise ControllerError("Selected manga artifact exceeds outer archive quota")
             ranges = [
-                (start, end) for start, end in title.ranges
+                (start, end)
+                for start, end in title.ranges
                 if outer.name == f"{title.prefix}{start}-{end}.zip"
             ]
             if len(ranges) != 1:
@@ -161,7 +160,9 @@ def stage_selected_manga(
                         main = int(value) if value >= 1 and value == value.to_integral_value() else None
                         claimed_main = record.get("mainChapterLabel")
                         if claimed_main != main:
-                            raise ControllerError("Selected manga main chapter classification differs from audit")
+                            raise ControllerError(
+                                "Selected manga main chapter classification differs from audit"
+                            )
                         if main is not None:
                             if main not in expected or main in current or main in main_found:
                                 raise ControllerError("Duplicate or out-of-range numbered manga chapter")
@@ -194,7 +195,9 @@ def stage_selected_manga(
                     if set(members) != allowed:
                         raise ControllerError("Unexpected non-chapter selected manga source files")
             except (OSError, ValueError, zipfile.BadZipFile, RuntimeError, EOFError) as exc:
-                raise ControllerError("Selected manga source audit could not be independently verified") from exc
+                raise ControllerError(
+                    "Selected manga source audit could not be independently verified"
+                ) from exc
         if main_found != set(range(1, title.main_chapters + 1)):
             raise ControllerError("Selected manga is missing one or more numbered main chapters")
         if archived_pages != title.audited_pages:
@@ -204,9 +207,12 @@ def stage_selected_manga(
         report = build(src, output, registry, direction="vertical")
         check = verify_bundle(output)
         if (
-            report["series"] != 1 or check["series"] != 1
-            or report["chapters"] != len(deduplicated) or check["chapters"] != len(deduplicated)
-            or report["pages"] != distinct_pages or check["pages"] != distinct_pages
+            report["series"] != 1
+            or check["series"] != 1
+            or report["chapters"] != len(deduplicated)
+            or check["chapters"] != len(deduplicated)
+            or report["pages"] != distinct_pages
+            or check["pages"] != distinct_pages
         ):
             raise ControllerError("Staged selected manga data contract failed final check")
         catalogue = load_json(output / "catalogue.json")

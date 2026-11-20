@@ -27,7 +27,7 @@ from .hf_upload import (
     _read_checkpoint,
 )
 from .selected_stage import stable_registry
-from .selected_titles import SelectedTitle, TITLES, selected_title
+from .selected_titles import TITLES, SelectedTitle, selected_title
 
 MAX_BATCH_FILES = 150
 
@@ -52,8 +52,11 @@ def candidate_files(
     inventory = verify_bundle(bundle)
     catalogue = load_json(bundle / "catalogue.json")
     if (
-        inventory["series"] != 1 or not isinstance(catalogue, list) or len(catalogue) != 1
-        or catalogue[0]["title"] != title.name or catalogue[0]["direction"] != "vertical"
+        inventory["series"] != 1
+        or not isinstance(catalogue, list)
+        or len(catalogue) != 1
+        or catalogue[0]["title"] != title.name
+        or catalogue[0]["direction"] != "vertical"
         or len(catalogue[0]["chapters"]) < title.main_chapters
     ):
         raise ControllerError("Selected manga candidate is not a verified complete single title")
@@ -125,8 +128,12 @@ def _marker(title: SelectedTitle, idx: int, files: list[UploadFile]) -> tuple[st
         f"ingest/{title.slug}-v1/part-{idx:03}.json",
         _json_bytes(
             {
-                "schemaVersion": 1, "slug": title.slug, "sourceRun": title.run_id,
-                "part": idx, "count": len(files), "sha256": _digest_records(files),
+                "schemaVersion": 1,
+                "slug": title.slug,
+                "sourceRun": title.run_id,
+                "part": idx,
+                "count": len(files),
+                "sha256": _digest_records(files),
             }
         ),
     )
@@ -148,8 +155,11 @@ def _permission(title: SelectedTitle) -> bytes:
 
 
 def _completion(
-    title: SelectedTitle, entry: dict[str, Any],
-    media: list[UploadFile], meta: list[UploadFile], parts: list[list[UploadFile]]
+    title: SelectedTitle,
+    entry: dict[str, Any],
+    media: list[UploadFile],
+    meta: list[UploadFile],
+    parts: list[list[UploadFile]],
 ) -> tuple[str, bytes]:
     path = f"ingest/{title.slug}-v1/complete.json"
     return path, _json_bytes(
@@ -170,8 +180,12 @@ def _completion(
 
 
 def inspect_selected(
-    api: Any, token: str, title: SelectedTitle, media: list[UploadFile],
-    metadata: list[UploadFile], entry: dict[str, Any]
+    api: Any,
+    token: str,
+    title: SelectedTitle,
+    media: list[UploadFile],
+    metadata: list[UploadFile],
+    entry: dict[str, Any],
 ) -> tuple[dict[str, object], list[list[UploadFile]], tuple[str, bytes], str, set[str], list[dict[str, Any]]]:
     sha, paths = _repo_state(api, token)
     catalogue, catalogue_sha = _old_catalogue(sha, paths, token)
@@ -192,16 +206,25 @@ def inspect_selected(
             raise UploadConflict("Published selected manga catalogue has changed since this source")
         return (
             {
-                "status": "already-complete", "slug": title.slug,
-                "expectedRevision": sha, "catalogueDigest": catalogue_sha,
+                "status": "already-complete",
+                "slug": title.slug,
+                "expectedRevision": sha,
+                "catalogueDigest": catalogue_sha,
                 "expectedSourceDigest": _digest_records(media),
-                "totalParts": len(parts), "remainingParts": 0,
+                "totalParts": len(parts),
+                "remainingParts": 0,
                 "completeDigest": _hash(completed[1]),
             },
-            parts, completed, sha, paths, catalogue,
+            parts,
+            completed,
+            sha,
+            paths,
+            catalogue,
         )
     if any(item.get("id") == entry["id"] or item.get("title") == title.name for item in catalogue):
-        raise UploadConflict("This title already exists in the manga catalogue without the expected checkpoint")
+        raise UploadConflict(
+            "This title already exists in the manga catalogue without the expected checkpoint"
+        )
     if final_paths & paths:
         raise UploadConflict("Selected title publication metadata already exists without completion")
     incomplete = 0
@@ -219,26 +242,29 @@ def inspect_selected(
             incomplete += 1
     return (
         {
-            "status": "append-only-ready", "slug": title.slug,
-            "expectedRevision": sha, "catalogueDigest": catalogue_sha,
+            "status": "append-only-ready",
+            "slug": title.slug,
+            "expectedRevision": sha,
+            "catalogueDigest": catalogue_sha,
             "expectedSourceDigest": _digest_records(media),
-            "totalParts": len(parts), "remainingParts": incomplete,
+            "totalParts": len(parts),
+            "remainingParts": incomplete,
             "completeDigest": _hash(completed[1]),
         },
-        parts, completed, sha, paths, catalogue,
+        parts,
+        completed,
+        sha,
+        paths,
+        catalogue,
     )
 
 
-def selected_preview(
-    slug: str, bundle: Path, registry: Path, token: str
-) -> dict[str, object]:
+def selected_preview(slug: str, bundle: Path, registry: Path, token: str) -> dict[str, object]:
     if not token:
         raise ControllerError("Missing protected Hugging Face token")
     title = selected_title(slug)
     media, metadata, entry = candidate_files(title, bundle, registry)
-    plan, _, _, _, _, _ = inspect_selected(
-        _hf_api(token), token, title, media, metadata, entry
-    )
+    plan, _, _, _, _, _ = inspect_selected(_hf_api(token), token, title, media, metadata, entry)
     return plan
 
 
@@ -287,10 +313,7 @@ def selected_apply(
         marker, marker_bytes = _marker(title, index, part)
         if marker in paths:
             continue
-        ops = [
-            CommitOperationAdd(path_in_repo=record.path, path_or_fileobj=record.local)
-            for record in part
-        ]
+        ops = [CommitOperationAdd(path_in_repo=record.path, path_or_fileobj=record.local) for record in part]
         ops.append(CommitOperationAdd(path_in_repo=marker, path_or_fileobj=marker_bytes))
         commit(ops, f"Ingest private verified {title.name} pages part {index}/{len(parts)}")
         paths.update(record.path for record in part)
@@ -299,10 +322,7 @@ def selected_apply(
         print(f"Uploaded private {slug} page batch {index}/{len(parts)}", flush=True)
     # Atomically reveal the title in the existing catalogue only after all pages are committed.
     updated = sorted([*old_entries, entry], key=lambda item: str(item["title"]).casefold())
-    ops = [
-        CommitOperationAdd(path_in_repo=record.path, path_or_fileobj=record.local)
-        for record in metadata
-    ]
+    ops = [CommitOperationAdd(path_in_repo=record.path, path_or_fileobj=record.local) for record in metadata]
     ops.append(
         CommitOperationAdd(
             path_in_repo=f"ingest/{title.slug}-v1/attestation.json",
@@ -314,7 +334,9 @@ def selected_apply(
     commit(ops, f"Publish private {title.name} to existing manga catalogue after complete media")
     _, committed_paths = _repo_state(api, token)
     required = {file.path for file in [*media, *metadata]} | {
-        "catalogue.json", completion[0], f"ingest/{title.slug}-v1/attestation.json"
+        "catalogue.json",
+        completion[0],
+        f"ingest/{title.slug}-v1/attestation.json",
     }
     if not required.issubset(committed_paths):
         raise UploadConflict("Selected manga commit succeeded but published files are incomplete")
@@ -322,9 +344,14 @@ def selected_apply(
     if verified_catalogue != updated:
         raise UploadConflict("Selected manga catalogue merge did not persist as planned")
     return {
-        "status": "complete", "title": title.name, "slug": slug,
-        "chapters": len(entry["chapters"]), "pages": len(media),
-        "partsWritten": done, "revision": head, "private": True,
+        "status": "complete",
+        "title": title.name,
+        "slug": slug,
+        "chapters": len(entry["chapters"]),
+        "pages": len(media),
+        "partsWritten": done,
+        "revision": head,
+        "private": True,
         "catalogueTitles": len(updated),
     }
 

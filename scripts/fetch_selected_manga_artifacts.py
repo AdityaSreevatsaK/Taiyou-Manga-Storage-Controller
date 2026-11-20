@@ -32,7 +32,9 @@ def selected_source_artifacts(slug: str, *, token: str) -> list[dict[str, object
         raise ControllerError("Cannot read authorised GitHub Actions source run") from exc
     if not isinstance(data, dict) or not isinstance(data.get("artifacts"), list):
         raise ControllerError("Invalid GitHub Actions artifact inventory")
-    artifacts = [a for a in data["artifacts"] if isinstance(a, dict) and a.get("name") in title.artifact_names]
+    artifacts = [
+        a for a in data["artifacts"] if isinstance(a, dict) and a.get("name") in title.artifact_names
+    ]
     names = [a["name"] for a in artifacts]
     if len(artifacts) != len(title.ranges) or set(names) != title.artifact_names:
         raise ControllerError("Selected manga source run lacks one or more expected batches")

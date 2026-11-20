@@ -16,7 +16,7 @@ from PIL import Image
 from taiyou_manga.builder import load_json, verify_bundle
 from taiyou_manga.domain import ControllerError
 from taiyou_manga.images import check_bytes
-from taiyou_manga.selected_stage import stage_selected_manga, stable_registry
+from taiyou_manga.selected_stage import stable_registry, stage_selected_manga
 from taiyou_manga.selected_titles import TITLES, SelectedTitle
 
 
@@ -30,8 +30,13 @@ class SelectedMangaStageTests(unittest.TestCase):
         self.bundle = self.root / "bundle"
         self.registry = self.root / "ids.json"
         self.title = SelectedTitle(
-            "test-selected", "Example Manga", 999, 21, 23,
-            "Manga-example-Original-Ch", "00000000-0000-0000-0000-000000000000",
+            "test-selected",
+            "Example Manga",
+            999,
+            21,
+            23,
+            "Manga-example-Original-Ch",
+            "00000000-0000-0000-0000-000000000000",
         )
 
     def files(self, *, omit_final: bool = False, damaged: bool = False) -> None:
@@ -63,21 +68,27 @@ class SelectedMangaStageTests(unittest.TestCase):
                         "verifiedPageCount": 1,
                         "pages": [
                             {
-                                "name": "001.png", "sha256": page_meta.checksum,
-                                "mimeType": page_meta.mime, "width": page_meta.width,
-                                "height": page_meta.height, "byteSize": page_meta.byte_size,
+                                "name": "001.png",
+                                "sha256": page_meta.checksum,
+                                "mimeType": page_meta.mime,
+                                "width": page_meta.width,
+                                "height": page_meta.height,
+                                "byteSize": page_meta.byte_size,
                             }
                         ],
                     }
                 )
             batch = {
-                "schemaVersion": 1, "slug": self.title.slug, "title": self.title.name,
+                "schemaVersion": 1,
+                "slug": self.title.slug,
+                "title": self.title.name,
                 "sourceTitleUrl": f"https://mangadex.org/title/{self.title.source_id}",
                 "requestedRange": {"start": start, "end": end},
                 "qualityRequested": "original-upload-not-data-saver",
                 "completeSeriesVerified": False,
                 "archives": records,
-                "verifiedArchives": len(records), "verifiedPages": len(records),
+                "verifiedArchives": len(records),
+                "verifiedPages": len(records),
                 "verifiedMainChapters": end - start + 1,
                 "verifiedMainChapterNumbers": list(range(start, end + 1)),
             }
@@ -95,9 +106,7 @@ class SelectedMangaStageTests(unittest.TestCase):
     def test_two_batches_with_repeated_zero_bonus_keep_one_stable_chapter(self) -> None:
         self.files()
         with patch.dict(TITLES, {self.title.slug: self.title}):
-            result = stage_selected_manga(
-                self.title.slug, self.artifacts, self.bundle, self.registry
-            )
+            result = stage_selected_manga(self.title.slug, self.artifacts, self.bundle, self.registry)
         self.assertEqual(result["status"], "verified-selected-candidate")
         self.assertEqual(result["duplicateBonusArchivesSkipped"], 1)
         self.assertEqual(result["mainChapters"], 21)
@@ -109,7 +118,9 @@ class SelectedMangaStageTests(unittest.TestCase):
         self.assertEqual(entry["title"], "Example Manga")
         self.assertEqual(entry["chapters"][0]["label"], "Chapter 0")
         self.assertEqual(entry["chapters"][-1]["label"], "Chapter 21")
-        self.assertEqual(load_json(self.registry), stable_registry(self.title, {"0"} | {str(n) for n in range(1, 22)}))
+        self.assertEqual(
+            load_json(self.registry), stable_registry(self.title, {"0"} | {str(n) for n in range(1, 22)})
+        )
 
     def test_missing_numbered_main_chapter_refused(self) -> None:
         self.files(omit_final=True)

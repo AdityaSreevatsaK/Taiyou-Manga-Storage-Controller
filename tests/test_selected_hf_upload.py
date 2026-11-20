@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import json
 import sys
 import tempfile
@@ -12,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from taiyou_manga.hf_upload import UploadFile, UploadConflict
+from taiyou_manga.hf_upload import UploadConflict, UploadFile
 from taiyou_manga.selected_hf_upload import inspect_selected, selected_apply
 from taiyou_manga.selected_titles import TITLES, SelectedTitle
 
@@ -69,20 +68,26 @@ class SelectedUploadTests(unittest.TestCase):
         self.page.write_bytes(b"synthetic-image")
         self.meta = self.root / "manifest.json"
         self.meta.write_text("{}", encoding="utf-8")
-        self.media = [UploadFile(
-            "assets/manga/mng_example/ch_example/pg_example.png",
-            self.page,
-            hashlib.sha256(self.page.read_bytes()).hexdigest(),
-            self.page.stat().st_size,
-        )]
-        self.metadata = [UploadFile(
-            "manifests/ch_example.json",
-            self.meta,
-            hashlib.sha256(self.meta.read_bytes()).hexdigest(),
-            self.meta.stat().st_size,
-        )]
+        self.media = [
+            UploadFile(
+                "assets/manga/mng_example/ch_example/pg_example.png",
+                self.page,
+                hashlib.sha256(self.page.read_bytes()).hexdigest(),
+                self.page.stat().st_size,
+            )
+        ]
+        self.metadata = [
+            UploadFile(
+                "manifests/ch_example.json",
+                self.meta,
+                hashlib.sha256(self.meta.read_bytes()).hexdigest(),
+                self.meta.stat().st_size,
+            )
+        ]
         self.entry = {
-            "kind": "manga", "id": "mng_other_12345678", "title": "Test Other",
+            "kind": "manga",
+            "id": "mng_other_12345678",
+            "title": "Test Other",
             "chapters": [{"id": "ch_example_12345678", "label": "Chapter 1", "sequence": 0}],
         }
         self.fake = types.ModuleType("huggingface_hub")
@@ -90,18 +95,20 @@ class SelectedUploadTests(unittest.TestCase):
         self.fake.hf_hub_download = lambda **kw: str(self.catalogue)  # type: ignore[attr-defined]
 
     def test_appends_without_changing_existing_relife_entry(self) -> None:
-        with (patch.dict(TITLES, {self.title.slug: self.title}), patch.dict(
-            sys.modules, {"huggingface_hub": self.fake}
-        )):
+        with (
+            patch.dict(TITLES, {self.title.slug: self.title}),
+            patch.dict(sys.modules, {"huggingface_hub": self.fake}),
+        ):
             plan, _, _, _, _, _ = inspect_selected(
                 self.api, "synthetic-token", self.title, self.media, self.metadata, self.entry
             )
             preview = self.root / "approved.json"
             preview.write_text(json.dumps(plan), encoding="utf-8")
             with (
-                patch("taiyou_manga.selected_hf_upload.candidate_files", return_value=(
-                    self.media, self.metadata, self.entry
-                )),
+                patch(
+                    "taiyou_manga.selected_hf_upload.candidate_files",
+                    return_value=(self.media, self.metadata, self.entry),
+                ),
                 patch("taiyou_manga.selected_hf_upload._hf_api", return_value=self.api),
             ):
                 result = selected_apply(
@@ -117,9 +124,10 @@ class SelectedUploadTests(unittest.TestCase):
         self.assertIn(self.entry, final)
 
     def test_stale_revision_rejected_without_changes(self) -> None:
-        with (patch.dict(TITLES, {self.title.slug: self.title}), patch.dict(
-            sys.modules, {"huggingface_hub": self.fake}
-        )):
+        with (
+            patch.dict(TITLES, {self.title.slug: self.title}),
+            patch.dict(sys.modules, {"huggingface_hub": self.fake}),
+        ):
             plan, _, _, _, _, _ = inspect_selected(
                 self.api, "test", self.title, self.media, self.metadata, self.entry
             )
@@ -127,9 +135,10 @@ class SelectedUploadTests(unittest.TestCase):
             file.write_text(json.dumps(plan), encoding="utf-8")
             self.api.sha = "f" * 40
             with (
-                patch("taiyou_manga.selected_hf_upload.candidate_files", return_value=(
-                    self.media, self.metadata, self.entry
-                )),
+                patch(
+                    "taiyou_manga.selected_hf_upload.candidate_files",
+                    return_value=(self.media, self.metadata, self.entry),
+                ),
                 patch("taiyou_manga.selected_hf_upload._hf_api", return_value=self.api),
             ):
                 with self.assertRaisesRegex(UploadConflict, "changed since preview"):
