@@ -43,7 +43,7 @@ def _sha256(data: bytes) -> str:
 
 
 def _private_revision(api: Any, revision: str, token: str) -> str:
-    info = api.dataset_info(DATASET, repo_type="dataset", revision=revision, token=token)
+    info = api.dataset_info(DATASET, revision=revision, token=token)
     sha = str(info.sha)
     if info.private is not True or re.fullmatch(r"[0-9a-f]{40}", sha) is None:
         raise ControllerError("Private dataset revision is invalid or not private")
