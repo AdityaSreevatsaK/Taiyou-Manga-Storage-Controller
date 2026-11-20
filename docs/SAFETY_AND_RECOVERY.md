@@ -9,3 +9,7 @@
 7. `restore --backup backups/demo-1.zip --destination bundles/restored` only previews. Add `--approve` to restore to a new path. It refuses an existing destination, validates archive member names and verifies restored originals.
 
 **A catalogue-only copy is not a full-media backup.** Local-cache deletion is separate and not implemented. There is no bulk dataset reset, deletion or replacement command. Recovery from a compromised HF dataset requires a future owner-approved remote protocol with immutable remote or independently stored backups. Never post backups, logs with titles, or rights evidence to public CI artifacts.
+
+### Existing ReLIFE private dataset recovery (2026-11-20)
+
+ReLIFE was uploaded and verified in the legacy layout, but its root `catalogue.json` is not the Manga Library's canonical `data/library.json` envelope. This is a storage-contract defect, not missing source media. The old ReLIFE uploader is retired. Before any migration or additional title upload, run the read-only inventory scanner, establish the pinned private full-revision recovery branch, independently back up all media off-platform, test on a disposable private staging dataset, verify that IDs and SHA-256 hashes are unchanged, and publish canonical `data/library.json` last. The recovery branch is in the same Hugging Face account and therefore does **not** replace the off-platform full backup. Do not expose any backup archives through a public GitHub Actions artefact or commit.
