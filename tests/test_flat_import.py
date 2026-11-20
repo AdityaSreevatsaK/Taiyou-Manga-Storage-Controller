@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 import unittest
@@ -87,13 +88,18 @@ class FlatImageImportTests(unittest.TestCase):
         manifest = load_json(target / "manifests" / f"{catalogue[0]['chapters'][0]['id']}.json")
         self.assertEqual(len(manifest["pages"]), 11)
         self.assertEqual(
-            [self.source.glob("*.jpg").__class__.__name__] != [], True
+            manifest["pages"][2]["sha256"],
+            hashlib.sha256((self.source / "1_2.jpg").read_bytes()).hexdigest(),
         )
-        assert all(
+        self.assertEqual(
+            manifest["pages"][10]["sha256"],
+            hashlib.sha256((self.source / "1_10.jpg").read_bytes()).hexdigest(),
+        )
+        self.assertTrue(all(
             page["assetPath"].startswith(
                 f"manga/{catalogue[0]['id']}/{catalogue[0]['chapters'][0]['id']}/pg_"
             ) for page in manifest["pages"]
-        )
+        ))
         self.assertTrue(all(p["mimeType"] == "image/jpeg" for p in manifest["pages"]))
         self.assertTrue(all(p["sha256"] for p in manifest["pages"]))
         self.assertEqual(len(load_bundles(target)), 1)
