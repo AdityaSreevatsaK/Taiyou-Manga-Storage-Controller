@@ -179,6 +179,10 @@ class BulkCandidateTests(unittest.TestCase):
             rival = record("mng_ffffffffffff", "Demo_Manga")
             conflict, _ = prepare_plan(self.root, "a" * 40, set(), b"{}", [rival])
             self.assertEqual(conflict["status"], "conflict")
+            rival["title"] = "Different manga"
+            rival["aliases"] = ["Demo Manga"]
+            alias_conflict, _ = prepare_plan(self.root, "a" * 40, set(), b"{}", [rival])
+            self.assertEqual(alias_conflict["status"], "conflict")
 
     def test_bulk_rejects_missing_source_permission_or_changed_page(self) -> None:
         (self.root / "rights.json").unlink()
