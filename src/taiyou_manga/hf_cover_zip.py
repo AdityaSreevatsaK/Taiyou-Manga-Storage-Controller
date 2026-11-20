@@ -53,7 +53,11 @@ def unpack_verified(zip_path: Path, destination: Path) -> Path:
     if not destination.is_dir() or destination.is_symlink():
         raise ControllerError("A new private temporary destination is required")
     size = 0
-    with zipfile.ZipFile(zip_path) as zf:
+    try:
+        zf = zipfile.ZipFile(zip_path)
+    except (zipfile.BadZipFile, OSError) as exc:
+        raise ControllerError("Corrupt private cover ZIP archive") from exc
+    with zf:
         records = [member for member in zf.infolist() if not member.is_dir()]
         if not 1 <= len(records) <= MAX_FILES:
             raise ControllerError("Unsafe private cover ZIP file count")
@@ -83,7 +87,7 @@ def unpack_verified(zip_path: Path, destination: Path) -> Path:
                 raise ControllerError("Unexpected existing private cover staging path")
             target.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(member) as source, target.open("xb") as output:
-                copied = shutil.copyfileobj(source, output, 1024 * 1024)
+                shutil.copyfileobj(source, output, 1024 * 1024)
             if target.stat().st_size != member.file_size:
                 raise ControllerError("Cover ZIP source was truncated during extraction")
     return destination / next(iter(present))
