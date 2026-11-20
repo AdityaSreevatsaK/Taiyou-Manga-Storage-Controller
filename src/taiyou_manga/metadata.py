@@ -187,9 +187,10 @@ def cover_asset_path(cover: object, manga_id: str) -> str:
     }:
         raise ControllerError("Malformed canonical manga cover descriptor")
     asset = cover.get("assetPath")
-    if not isinstance(asset, str) or not COVER_ASSET.fullmatch(asset):
+    match = COVER_ASSET.fullmatch(asset) if isinstance(asset, str) else None
+    if match is None:
         raise ControllerError("Unsafe canonical manga cover path")
-    if COVER_ASSET.fullmatch(asset).group(1) != manga_id:
+    if match.group(1) != manga_id:
         raise ControllerError("Cover does not belong to its immutable manga ID")
     suffix = "." + asset.rsplit(".", 1)[-1]
     from .domain import IMAGE_EXTENSIONS
