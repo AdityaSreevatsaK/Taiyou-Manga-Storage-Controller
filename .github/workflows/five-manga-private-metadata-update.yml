@@ -1,0 +1,127 @@
+name: P0 private five-manga publication metadata and real-cover update
+
+on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/five-manga-private-metadata-update.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: hf-manga-private-write
+  cancel-in-progress: false
+
+jobs:
+  apply-reviewed-five-manga-metadata:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: hf-manga-upload
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install Controller and private HF client
+        run: |
+          python -m pip install --upgrade 'setuptools>=84.1.0'
+          python -m pip install -e '.[huggingface]'
+      - name: Download original verified five-cover and metadata source archives
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 "${RUNNER_TEMP}/five-manga-handover"
+          gh api repos/RichardDaffern/Manga-Retriever/actions/artifacts/14614808103/zip > "${RUNNER_TEMP}/five-manga-handover/covers.zip"
+          gh api repos/RichardDaffern/Manga-Retriever/actions/artifacts/14614456172/zip > "${RUNNER_TEMP}/five-manga-handover/metadata.zip"
+      - name: Verify original cover bytes, source manga IDs, metadata hashes and status
+        shell: bash
+        run: |
+          python -m scripts.prepare_five_metadata_handover \
+            --cover-artifact "${RUNNER_TEMP}/five-manga-handover/covers.zip" \
+            --metadata-artifact "${RUNNER_TEMP}/five-manga-handover/metadata.zip" \
+            --output "${RUNNER_TEMP}/five-manga-handover/candidates"
+      - name: Preview and apply one revision-guarded private catalogue update
+        shell: bash
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_DISABLE_TELEMETRY: '1'
+          HF_HUB_ENABLE_HF_TRANSFER: '0'
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from taiyou_manga.hf_metadata import _api, _snapshot, apply, preview
+          from taiyou_manga.metadata import completeness
+          from taiyou_manga.relife_stage import _stable_registry
+          from taiyou_manga.selected_stage import stable_registry
+          from taiyou_manga.selected_titles import TITLES
+          import scripts.prepare_five_metadata_handover as source
+
+          token = os.environ["HF_TOKEN"]
+          api = _api(token)
+          before_sha, before_paths, _, before = _snapshot(api, token)
+          if len(before) != 5:
+              raise RuntimeError("Refusing metadata update: expected exactly five existing manga")
+          required = {_stable_registry(set())["series:ReLIFE"]}
+          required.update(
+              stable_registry(title, set())[f"series:{title.name}"]
+              for title in TITLES.values()
+          )
+          if {entry["id"] for entry in before} != required:
+              raise RuntimeError("Manga IDs differ from the verified original downloader")
+          before_chapters = {entry["id"]: entry["chapters"] for entry in before}
+          candidate_path = Path(os.environ["RUNNER_TEMP"]) / "five-manga-handover" / "candidates" / "candidates.json"
+          plan = preview(api, token, candidate_path)
+          if plan["status"] != "ready" or plan["conflicts"]:
+              raise RuntimeError("Manual metadata conflict or no approved changes; aborting private update")
+          if len(plan["coverUploads"]) != 5 or len(plan["coverRights"]) != 5:
+              raise RuntimeError("All five approved, intact private covers are required")
+          if len(plan["changes"]) < 25:
+              raise RuntimeError("Five-source publication metadata coverage is incomplete")
+          if plan["expectedRevision"] != before_sha:
+              raise RuntimeError("Private HF revision changed after preliminary audit")
+          if plan["after"]["complete"] != 5:
+              raise RuntimeError("Five enriched manga must pass metadata completeness checks")
+          plan_path = Path(os.environ["RUNNER_TEMP"]) / "five-manga-handover" / "approved-plan.json"
+          plan_path.write_text(json.dumps(plan, sort_keys=True) + "\n", encoding="utf-8")
+          print("Preview verified: five immutable entries, five exact covers, no conflicts or media deletions", flush=True)
+          result = apply(api, token, candidate_path, plan_path, approve=True)
+          after_sha, after_paths, _, after = _snapshot(api, token)
+          if result["status"] != "complete" or len(after) != 5:
+              raise RuntimeError("Private manga metadata commit did not complete")
+          if not before_paths.issubset(after_paths):
+              raise RuntimeError("Existing private manga files disappeared")
+          for entry in after:
+              if entry["chapters"] != before_chapters[entry["id"]]:
+                  raise RuntimeError("Manga chapter IDs, order, or page counts were unexpectedly modified")
+              if not entry.get("cover") or not entry.get("creators") or not entry.get("synopsis") or not entry.get("tags"):
+                  raise RuntimeError("Private manga publication metadata remains incomplete")
+          if completeness(after)["complete"] != 5:
+              raise RuntimeError("Final private catalogue metadata completeness failed")
+          print(json.dumps({
+              "status": "verified-live-private-metadata",
+              "manga": len(after),
+              "coversAdded": result["coversAdded"],
+              "rightsSidecars": result["coverRightsStored"],
+              "fieldsUpdated": result["changes"],
+              "backupPath": result["catalogueBackup"],
+              "previousRevision": before_sha,
+              "revision": after_sha,
+              "originalChaptersUnchanged": True,
+              "originalPathsPreserved": True
+          }, sort_keys=True), flush=True)
+          PY
+      - name: Destroy runner-only cover art, candidate metadata and temporary plan
+        shell: bash
+        if: always()
+        run: rm -rf -- "${RUNNER_TEMP}/five-manga-handover"
+
+# Source artefacts are private-runner-only, never committed to the public code repo.
+# Private HF permissions are used only in this protected workflow.
+# Covers are recorded as private owner-requested copies, NOT cleared for redistribution.
