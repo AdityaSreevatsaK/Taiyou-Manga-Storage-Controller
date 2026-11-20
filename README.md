@@ -4,6 +4,18 @@ Offline-first, **Windows-friendly** Python tools for inspecting authorised manga
 
 > **Privacy and rights:** This GitHub repository is public. Never commit manga images, private manifests, media backups, personal notes or credentials. Only import media you are authorised to store. The controller does not download or scrape manga. **General-purpose Hugging Face writes remain disabled. ReLIFE has a narrowly authorised, guarded private upload workflow.**
 
+## Novel-style Manga Controller tools
+
+For the Windows menu and private Hugging Face catalogue listing, bulk upload/download,
+conflicts, integrity checks, backups, cover audits, restore and guarded single-manga
+deletion, see [Manga / Novel Controller feature parity](docs/NOVEL_CONTROLLER_PARITY.md).
+The default `00_manga_storage_menu.cmd` now opens the private manga management menu;
+previous synthetic/offline demos remain at option 20.
+
+Install `py -3 -m pip install -e ".[huggingface]"` for cloud tools and set
+`HF_TOKEN` through your terminal environment. No private dataset writes occur by
+opening the menu. The whole-dataset wipe option remains disabled.
+
 ## Quick start on Windows (PowerShell)
 
 Install Python 3.11 or 3.12, then:
