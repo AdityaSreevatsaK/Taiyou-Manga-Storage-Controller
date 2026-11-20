@@ -44,7 +44,10 @@ def validate_entries(raw: object) -> list[dict[str, Any]]:
     for entry in raw:
         if not isinstance(entry, dict) or entry.get("kind") != "manga":
             raise ControllerError("Invalid manga catalogue record")
-        sid = valid_id(entry.get("id"), "mng")
+        raw_sid = entry.get("id")
+        if not isinstance(raw_sid, str):
+            raise ControllerError("Missing or unsafe manga series identifier")
+        sid = valid_id(raw_sid, "mng")
         title = entry.get("title")
         if not isinstance(title, str) or not 1 <= len(title.strip()) <= 180:
             raise ControllerError("Missing or oversized manga title")
@@ -68,7 +71,10 @@ def validate_entries(raw: object) -> list[dict[str, Any]]:
         for chapter in chapters:
             if not isinstance(chapter, dict):
                 raise ControllerError("Invalid manga chapter")
-            cid = valid_id(chapter.get("id"), "ch")
+            raw_cid = chapter.get("id")
+            if not isinstance(raw_cid, str):
+                raise ControllerError("Missing or unsafe manga chapter identifier")
+            cid = valid_id(raw_cid, "ch")
             if cid in seen_chapters:
                 raise ControllerError("Duplicate cross-series manga chapter ID")
             seen_chapters.add(cid)
