@@ -1,0 +1,83 @@
+name: Read-only live private Manga Controller management smoke
+
+on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/private-manga-management-smoke.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-manga-management-read-only
+  cancel-in-progress: false
+
+jobs:
+  verify-private-management:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: hf-manga-upload
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install private manga catalogue read dependencies
+        run: |
+          python -m pip install --upgrade 'setuptools>=84.1.0'
+          python -m pip install -e '.[huggingface]'
+      - name: Verify private canonical manga catalogue and one manifest per title
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_DISABLE_TELEMETRY: '1'
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from taiyou_manga.hf_manage import (
+              _manifest, list_entries, quick_integrity, snapshot, title_conflicts
+          )
+          from taiyou_manga.metadata import completeness
+
+          token = os.environ['HF_TOKEN']
+          api, revision, paths, _, entries = snapshot(token)
+          if len(entries) != 5:
+              raise RuntimeError("Unexpected private catalogue series count")
+          rows = list_entries(entries)
+          if len(rows) != 5 or title_conflicts(entries):
+              raise RuntimeError("Manga list or duplicate detection failed")
+          report = quick_integrity(entries, paths)
+          if (
+              not report['complete']
+              or report['series'] != 5
+              or report['chapters'] != 587
+              or report['pages'] != 14635
+              or completeness(entries)['complete'] != 5
+          ):
+              raise RuntimeError("Private manga integrity or metadata completeness failed")
+          samples = 0
+          for entry in entries:
+              if not entry['chapters']:
+                  raise RuntimeError("Private manga is missing all chapters")
+              manifest = _manifest(api, token, revision, entry, entry['chapters'][0])
+              if not manifest.pages:
+                  raise RuntimeError("Private manga sample chapter has no pages")
+              if f'data/{manifest.pages[0].assetPath}' not in paths:
+                  raise RuntimeError("Manga sample manifest references missing media")
+              samples += 1
+          print(json.dumps({
+              'status': 'private-manga-management-read-only-verified',
+              'series': len(entries),
+              'chapters': report['chapters'],
+              'pages': report['pages'],
+              'privateCoversAndMetadata': 5,
+              'chaptersSampled': samples,
+              'revision': revision,
+              'remoteWrites': 0
+          }, sort_keys=True))
+          PY
+
+# Safe read-only check: never prints manga titles, credentials or cover URLs.
+# Does not create/delete private datasets or write even a temporary HF branch.
