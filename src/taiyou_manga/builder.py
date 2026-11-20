@@ -204,9 +204,7 @@ def _build(
                 checksums.add(checked.checksum)
                 # The first occurrence retains its original ID. Any identical later
                 # page has a distinct, stable identity derived from its position.
-                identity_checksum = (
-                    f"{checked.checksum}:repeat:{position}" if repeated else checked.checksum
-                )
+                identity_checksum = f"{checked.checksum}:repeat:{position}" if repeated else checked.checksum
                 page_id = _page_id(chapter_id, identity_checksum)
                 asset_path = f"manga/{series_id}/{chapter_id}/{page_id}{checked.extension}"
                 page = Page(

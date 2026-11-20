@@ -17,6 +17,7 @@ from typing import Any
 
 from .builder import load_json, verify_bundle
 from .domain import ControllerError
+from .hf_layout import CANONICAL_CATALOGUE, canonical_library, validate_library
 from .hf_upload import (
     DATASET,
     UploadConflict,
@@ -26,7 +27,6 @@ from .hf_upload import (
     _json_bytes,
     _read_checkpoint,
 )
-from .hf_layout import CANONICAL_CATALOGUE, canonical_library, validate_library
 from .selected_stage import stable_registry
 from .selected_titles import TITLES, SelectedTitle, selected_title
 
@@ -79,7 +79,10 @@ def candidate_files(
     assets = sorted(path for path in (bundle / "assets" / "manga").rglob("*") if path.is_file())
     if len(assets) != inventory["pages"] or not assets:
         raise ControllerError("Selected manga image inventory differs from candidate manifest")
-    media = [_record(path, "data/" + path.relative_to(bundle).as_posix().removeprefix("assets/")) for path in assets]
+    media = [
+        _record(path, "data/" + path.relative_to(bundle).as_posix().removeprefix("assets/"))
+        for path in assets
+    ]
     manifests = sorted((bundle / "manifests").glob("*.json"))
     if len(manifests) != len(labels):
         raise ControllerError("Selected manga chapter manifest inventory changed")
@@ -103,8 +106,7 @@ def _old_catalogue(sha: str, paths: set[str], token: str) -> tuple[list[dict[str
     from huggingface_hub import hf_hub_download
 
     filename = hf_hub_download(
-        repo_id=DATASET, filename=CANONICAL_CATALOGUE, repo_type="dataset",
-        revision=sha, token=token
+        repo_id=DATASET, filename=CANONICAL_CATALOGUE, repo_type="dataset", revision=sha, token=token
     )
     contents = Path(filename).read_bytes()
     if len(contents) > 4 * 1024 * 1024:
@@ -339,7 +341,11 @@ def selected_apply(
         )
     )
     ops.append(CommitOperationAdd(path_in_repo=completion[0], path_or_fileobj=completion[1]))
-    ops.append(CommitOperationAdd(path_in_repo=CANONICAL_CATALOGUE, path_or_fileobj=_json_bytes(canonical_library(updated))))
+    ops.append(
+        CommitOperationAdd(
+            path_in_repo=CANONICAL_CATALOGUE, path_or_fileobj=_json_bytes(canonical_library(updated))
+        )
+    )
     commit(ops, f"Publish private {title.name} to existing manga catalogue after complete media")
     _, committed_paths = _repo_state(api, token)
     required = {file.path for file in [*media, *metadata]} | {

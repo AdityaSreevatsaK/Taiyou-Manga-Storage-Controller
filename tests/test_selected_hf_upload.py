@@ -25,7 +25,12 @@ class FakeAdd:
 class FakeHf:
     def __init__(self, catalogue_file: Path) -> None:
         self.sha = "a" * 40
-        self.files = {"data/library.json", "data/manifests/ch_relife1234.json", "data/manga/mng_existing_12345678/ch_relife1234/pg_aabbccddee.png", "ingest/relife-v1/complete.json"}
+        self.files = {
+            "data/library.json",
+            "data/manifests/ch_relife1234.json",
+            "data/manga/mng_existing_12345678/ch_relife1234/pg_aabbccddee.png",
+            "ingest/relife-v1/complete.json",
+        }
         self.commits: list[list[str]] = []
         self.catalogue_file = catalogue_file
 
@@ -60,8 +65,20 @@ class SelectedUploadTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.catalogue = self.root / "remote-catalogue.json"
-        self.relife = {"kind": "manga", "id": "mng_existing_12345678", "title": "ReLIFE", "aliases": [], "creators": [], "tags": [], "publicationStatus": "completed", "direction": "vertical", "chapters": [{"id": "ch_relife1234", "label": "Chapter 1", "sequence": 0, "pageCount": 1}]}
-        self.catalogue.write_text(json.dumps({"schemaVersion": 1, "mediaKind": "manga", "entries": [self.relife]}), encoding="utf-8")
+        self.relife = {
+            "kind": "manga",
+            "id": "mng_existing_12345678",
+            "title": "ReLIFE",
+            "aliases": [],
+            "creators": [],
+            "tags": [],
+            "publicationStatus": "completed",
+            "direction": "vertical",
+            "chapters": [{"id": "ch_relife1234", "label": "Chapter 1", "sequence": 0, "pageCount": 1}],
+        }
+        self.catalogue.write_text(
+            json.dumps({"schemaVersion": 1, "mediaKind": "manga", "entries": [self.relife]}), encoding="utf-8"
+        )
         self.api = FakeHf(self.catalogue)
         self.title = SelectedTitle("test-other", "Test Other", 123, 1, 1, "Test-Original-Ch", "test-uuid")
         self.page = self.root / "page.png"
@@ -88,7 +105,11 @@ class SelectedUploadTests(unittest.TestCase):
             "kind": "manga",
             "id": "mng_other_12345678",
             "title": "Test Other",
-            "aliases": [], "creators": [], "tags": [], "publicationStatus": "unknown", "direction": "vertical",
+            "aliases": [],
+            "creators": [],
+            "tags": [],
+            "publicationStatus": "unknown",
+            "direction": "vertical",
             "chapters": [{"id": "ch_example_12345678", "label": "Chapter 1", "sequence": 0, "pageCount": 1}],
         }
         self.fake = types.ModuleType("huggingface_hub")
@@ -97,6 +118,7 @@ class SelectedUploadTests(unittest.TestCase):
 
     def test_appends_without_changing_existing_relife_entry(self) -> None:
         import os
+
         self.addCleanup(lambda: os.environ.pop("TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED", None))
         os.environ["TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED"] = "yes"
         with (
@@ -131,6 +153,7 @@ class SelectedUploadTests(unittest.TestCase):
 
     def test_stale_revision_rejected_without_changes(self) -> None:
         import os
+
         self.addCleanup(lambda: os.environ.pop("TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED", None))
         os.environ["TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED"] = "yes"
         with (
@@ -156,9 +179,13 @@ class SelectedUploadTests(unittest.TestCase):
 
     def test_existing_title_cannot_be_overwritten(self) -> None:
         import os
+
         self.addCleanup(lambda: os.environ.pop("TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED", None))
         os.environ["TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED"] = "yes"
-        self.catalogue.write_text(json.dumps({"schemaVersion": 1, "mediaKind": "manga", "entries": [self.relife, self.entry]}), encoding="utf-8")
+        self.catalogue.write_text(
+            json.dumps({"schemaVersion": 1, "mediaKind": "manga", "entries": [self.relife, self.entry]}),
+            encoding="utf-8",
+        )
         with patch.dict(sys.modules, {"huggingface_hub": self.fake}):
             with self.assertRaisesRegex(UploadConflict, "already exists"):
                 inspect_selected(self.api, "test", self.title, self.media, self.metadata, self.entry)
