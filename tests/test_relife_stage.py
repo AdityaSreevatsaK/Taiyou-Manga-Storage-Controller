@@ -95,6 +95,19 @@ class ReLIFEStagingTests(unittest.TestCase):
         self.assertEqual(catalogue[0]["direction"], "vertical")
         self.assertEqual(len(load_json(self.registry)), 3)
 
+    def test_stable_identity_staging_uses_reproducible_ids(self) -> None:
+        self.source()
+        result = stage_relife_candidate(
+            self.artifacts, self.bundle, self.registry, require_complete=False, stable_ids=True
+        )
+        self.assertTrue(result["persistentIdsAssigned"])
+        first = load_json(self.registry)
+        catalogue = load_json(self.bundle / "catalogue.json")
+        self.assertEqual(first["series:ReLIFE"], catalogue[0]["id"])
+        self.assertEqual(
+            first["chapter:ReLIFE/Chapter 19.5.cbz"], catalogue[0]["chapters"][1]["id"]
+        )
+
     def test_preexisting_bundle_or_registry_refused_without_changes(self) -> None:
         self.source()
         self.bundle.mkdir()
