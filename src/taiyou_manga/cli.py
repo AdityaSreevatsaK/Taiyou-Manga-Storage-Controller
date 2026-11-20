@@ -12,6 +12,7 @@ from .backup import create_backup, restore_backup, verify_backup
 from .builder import build, load_json, verify_bundle
 from .demo import create_demo
 from .domain import ControllerError
+from .flat_import import flat_preview
 from .identity_migration import migrate_identities
 from .images import Limits
 from .relife_intake import audit_relife_artifacts
@@ -39,7 +40,23 @@ def parser() -> argparse.ArgumentParser:
     generate.add_argument("--series-title")
     generate.add_argument("--direction", choices=["rtl", "ltr", "vertical"], default="rtl")
     generate.add_argument("--rights-json", type=_path)
-    for command in (scan, generate):
+    flat_scan = sub.add_parser(
+        "flat-preview", help="Preview one manga in <chapter>_<page>.jpg flat filename format"
+    )
+    flat_scan.add_argument("--source", required=True, type=_path)
+    flat_scan.add_argument("--series-title", required=True)
+    flat_build = sub.add_parser(
+        "flat-build", help="Build existing canonical bundle from numbered manga images"
+    )
+    flat_build.add_argument("--source", required=True, type=_path)
+    flat_build.add_argument("--series-title", required=True)
+    flat_build.add_argument("--output", required=True, type=_path)
+    flat_build.add_argument("--state-file", type=_path, default=Path(".manga-controller/ids.json"))
+    flat_build.add_argument("--manga-key", help="Stable manga ID key independent of folder name")
+    flat_build.add_argument("--direction", choices=["rtl", "ltr", "vertical"], default="rtl")
+    flat_build.add_argument("--rights-json", required=True, type=_path)
+    flat_build.add_argument("--allow-duplicate-pages", action="store_true")
+    for command in (scan, generate, flat_scan, flat_build):
         command.add_argument(
             "--max-total-mb", type=int, default=5000, help="Image data quota in decimal MB (1 to 5000)"
         )
@@ -143,6 +160,21 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             pages += len(chapter.pages)
             sources.append({"chapter": chapter.key, "pages": len(chapter.pages)})
         return {"status": "read-only", "chapters": chapters, "pages": pages, "sources": sources}
+    if cmd == "flat-preview":
+        return flat_preview(args.source, args.series_title, _import_limits(args))
+    if cmd == "flat-build":
+        return build(
+            args.source,
+            args.output,
+            args.state_file,
+            args.series_title,
+            args.direction,
+            args.rights_json,
+            _import_limits(args),
+            allow_duplicate_pages=args.allow_duplicate_pages,
+            flat_numbered=True,
+            manga_key=args.manga_key,
+        )
     if cmd == "manifest":
         return build(
             args.source,
