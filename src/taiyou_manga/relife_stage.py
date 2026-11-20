@@ -32,14 +32,13 @@ MAX_CBZ_BYTES = 500_000_000
 
 def _stable_registry(numbers: set[str]) -> dict[str, str]:
     """Versioned, reproducible opaque identities, never tied to temporary paths."""
-    result = {
-        "series:ReLIFE": "mng_" + hashlib.sha256(b"taiyou-manga/v1/relife/series").hexdigest()[:24]
-    }
+    result = {"series:ReLIFE": "mng_" + hashlib.sha256(b"taiyou-manga/v1/relife/series").hexdigest()[:24]}
     for number in sorted(numbers, key=Decimal):
         key = "chapter:ReLIFE/Chapter " + number + ".cbz"
-        result[key] = "ch_" + hashlib.sha256(
-            ("taiyou-manga/v1/relife/chapter/" + number).encode("ascii")
-        ).hexdigest()[:24]
+        result[key] = (
+            "ch_"
+            + hashlib.sha256(("taiyou-manga/v1/relife/chapter/" + number).encode("ascii")).hexdigest()[:24]
+        )
     return result
 
 
@@ -67,7 +66,12 @@ def _copy_verified_cbz(
 
 
 def stage_relife_candidate(
-    artifact_dir: Path, output: Path, registry_file: Path, *, require_complete: bool = True, stable_ids: bool = False
+    artifact_dir: Path,
+    output: Path,
+    registry_file: Path,
+    *,
+    require_complete: bool = True,
+    stable_ids: bool = False,
 ) -> dict[str, Any]:
     """Build locally with new provisional opaque IDs; no public or cloud publication."""
     if output.exists() or output.is_symlink():
