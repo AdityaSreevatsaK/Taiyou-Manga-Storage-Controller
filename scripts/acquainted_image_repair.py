@@ -54,9 +54,11 @@ def _recover_jpeg(original: bytes, filename: str, work: Path) -> tuple[str, Path
     if not original.endswith(b"\xff\xd9"):
         appended = original + b"\xff\xd9"
         try:
-            return "missing-jpeg-eoi", _save_verified_candidate(appended, filename, repaired_folder)
-        except (ControllerError, OSError, SyntaxError, ValueError):
+            check_bytes(appended, filename)
+        except ControllerError:
             pass
+        else:
+            return "missing-jpeg-eoi", _save_verified_candidate(appended, filename, repaired_folder)
 
     # More seriously truncated JPEGs can decode with partially lost visual
     # content. This is a review candidate, never an automatic source replacement.
@@ -79,8 +81,7 @@ def _recover_jpeg(original: bytes, filename: str, work: Path) -> tuple[str, Path
                 colour = image.convert("RGB")
                 result = io.BytesIO()
                 colour.save(result, format="JPEG", quality=95, subsampling=0)
-        path = _save_verified_candidate(result.getvalue(), filename, repaired_folder)
-        return "tolerant-jpeg-reencode-may-have-missing-artwork", path
+        encoded = result.getvalue()
     except (
         ControllerError,
         Image.DecompressionBombWarning,
@@ -92,6 +93,8 @@ def _recover_jpeg(original: bytes, filename: str, work: Path) -> tuple[str, Path
         return None
     finally:
         ImageFile.LOAD_TRUNCATED_IMAGES = previous_setting
+    path = _save_verified_candidate(encoded, filename, repaired_folder)
+    return "tolerant-jpeg-reencode-may-have-missing-artwork", path
 
 
 def _reason(error: ControllerError) -> str:
