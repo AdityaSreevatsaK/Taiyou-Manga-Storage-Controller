@@ -232,6 +232,7 @@ def interactive_menu() -> None:
         "18": "Audit or repair publication metadata",
         "19": "Back up all manga media (download all)",
         "20": "Original offline manga tools",
+        "21": "Import flat <chapter>_<page> JPG/PNG manga (preview and upload)",
         "0": "Exit",
     }
 
@@ -388,6 +389,53 @@ def interactive_menu() -> None:
                 from .cli import interactive_menu as original
 
                 original()
+            elif choice == "21":
+                from .cli import parser as offline_parser
+                from .cli import run as offline_run
+
+                source = ask("Folder of images such as 1_0.jpg, 1_1.jpg, 2_0.jpg")
+                title = ask("Full manga title")
+                key = ask("Stable manga key (optional, e.g. my-manga)")
+                direction = ask("Reading direction (rtl/ltr/vertical; default rtl)") or "rtl"
+                preview = offline_run(
+                    offline_parser().parse_args(["flat-preview", "--source", source, "--series-title", title])
+                )
+                print(json.dumps(preview, indent=2))
+                if ask("After reviewing chapter/page counts, type BUILD") != "BUILD":
+                    continue
+                bundle = ask("NEW private bundle destination (e.g. bundles/my-manga)")
+                rights = ask("Existing source permission/rights JSON path")
+                build_command = [
+                    "flat-build",
+                    "--source",
+                    source,
+                    "--series-title",
+                    title,
+                    "--output",
+                    bundle,
+                    "--rights-json",
+                    rights,
+                    "--direction",
+                    direction,
+                ]
+                if key:
+                    build_command.extend(["--manga-key", key])
+                local = offline_run(offline_parser().parse_args(build_command))
+                print(json.dumps(local, indent=2))
+                if not os.getenv("HF_TOKEN"):
+                    print("Local bundle ready. Set HF_TOKEN to preview a private upload using option 1.")
+                    continue
+                if ask("Type PREVIEW to check the private Hugging Face upload") != "PREVIEW":
+                    continue
+                plan = ask("NEW upload preview JSON path (e.g. reports/flat-plan.json)")
+                cloud_command = ["bulk-upload", "--source", bundle, "--plan-file", plan]
+                proposed = run(parser().parse_args(cloud_command))
+                print(json.dumps(proposed, indent=2))
+                if proposed["status"] != "ready":
+                    print("Remote conflicts detected. Nothing has been uploaded.")
+                    continue
+                if ask("After reviewing the plan, type APPROVE to upload") == "APPROVE":
+                    invoke([*cloud_command, "--apply", "--approve"])
             else:
                 print("Invalid selection")
         except (ControllerError, OSError, ValueError, EOFError) as exc:

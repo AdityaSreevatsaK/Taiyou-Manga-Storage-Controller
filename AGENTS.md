@@ -56,6 +56,16 @@ Keep the catalogue publication **last** after complete validated media. Use chec
 - Do not make a private dataset public, create a new dataset as a workaround, or use an unscoped environment token.
 - Ordinary CI is synthetic and token-free. Historic protected GitHub Actions workflows may read/write private HF under explicit owner-approved gates; treat them as **special-case operations**, not a general CI exception.
 
+## Flat numbered source images
+
+The Controller supports owner-supplied image folders named `1_0.jpg`,
+`1_1.jpg`, `1_10.jpg`, `2_0.jpg`. These are **local source filenames**;
+never expose them as canonical HF asset IDs. Use the same builder, page
+manifest and general bulk uploader. For exact reader coordination see
+[Flat import contract](docs/LIBRARY_FLAT_CHAPTER_IMPORT_CONTRACT.md).
+This flow supports new complete manga only; do not silently append to an
+already published manga or change existing IDs.
+
 ## Implementation and testing expectations
 
 - Python 3.11 and 3.12, Windows and Linux. Windows PowerShell/Command Prompt menu must continue to work.
