@@ -30,31 +30,36 @@ SOURCES = {
         "6e3553b9-ddb5-4d37-b7a3-99998044774e",
         "0fb5a07b1fd30a2c35ba30c64f7623c50b47cb50aef1d727428b2957311d74cb",
         "5ca50594536ad7c2cde24f234c5fd014b2dd57a72d9a442e89efcb3252a2b006",
-        "png", "ReLIFE",
+        "png",
+        "ReLIFE",
     ),
     "maid-sama": (
         "d5e2bd89-e300-4262-a799-fb4f79bdb777",
         "a8e061c6c5999112c0bac6aca1401dc42e0beb23cfbdaa586bf46c550fd3edc4",
         "6a1eb8308edd02584386bc062a78ebd885fc603547de1674b359e03bacf84df4",
-        "jpg", "Kaichou wa Maid-sama!",
+        "jpg",
+        "Kaichou wa Maid-sama!",
     ),
     "last-game": (
         "32600d3f-a43a-4f90-8a4e-c4e09f35c99b",
         "809be7f0102742bc84c0679f1c922423caf7f244fd4864ad95c6a5794e7b46bf",
         "68bfbb7b84d1f277d47a1d7818e7be247ae6fe1130b6ade135d100934001e52a",
-        "jpg", "Last Game",
+        "jpg",
+        "Last Game",
     ),
     "love-so-life": (
         "911a12ae-1022-448e-9219-b7b294d7fb3e",
         "ba1a1f8b608eb0593a1c4da4939f5063b31b2995de9ab359508d56643132897d",
         "8c1717cc78608454f8d07296a81141ab12a0e0bbdcc61c07ef578c8b111de3fd",
-        "jpg", "Love So Life",
+        "jpg",
+        "Love So Life",
     ),
     "onizuka-sawarida": (
         "96b87943-6458-4045-a029-d3185d5cea57",
         "948c36132e6a2c3a2cf2519031e8dcaaf6eef733902e5aeb80c02da16f0fc190",
         "47b46212776b7f4c43ca952374df481a6e3564b838bf271d04e35805e5f566a2",
-        "jpg", "Onizuka-chan and Sawarida-kun",
+        "jpg",
+        "Onizuka-chan and Sawarida-kun",
     ),
 }
 
@@ -159,7 +164,8 @@ def build(cover_artifact: Path, metadata_artifact: Path, output: Path) -> dict[s
         cover_path = f"covers/{slug}.{ext}"
         cover = cover_files.get(cover_path)
         if (
-            cover is None or sha256(cover) != cover_sha
+            cover is None
+            or sha256(cover) != cover_sha
             or cover_row.get("sha256") != cover_sha
             or cover_row.get("path") != cover_path
             or cover_row.get("sourceMangaId", source_id) != source_id
@@ -172,7 +178,8 @@ def build(cover_artifact: Path, metadata_artifact: Path, output: Path) -> dict[s
 
         inspected = check_bytes(cover, cover_path)
         if (
-            inspected.checksum != cover_sha or inspected.byte_size != cover_row["bytes"]
+            inspected.checksum != cover_sha
+            or inspected.byte_size != cover_row["bytes"]
             or inspected.width != cover_row["width"]
             or inspected.height != cover_row["height"]
             or inspected.mime != cover_row["mimeType"]
@@ -189,34 +196,35 @@ def build(cover_artifact: Path, metadata_artifact: Path, output: Path) -> dict[s
             "sourceUrl": source["sourceUrl"],
             "retrievedAt": when.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
-        submitted.append({
-            "mangaId": _identity(slug, title),
-            "title": title,
-            "source": origin,
-            "metadata": {
-                "aliases": meta["aliases"],
-                "creators": meta["creators"],
-                "creatorRoles": [
-                    {"name": item["name"], "role": item["role"]}
-                    for item in meta["creatorRoles"]
-                ],
-                "tags": meta["tags"],
-                "synopsis": meta["synopsis"],
-                "publicationStatus": meta["publicationStatus"],
-                "cover": {
-                    "file": cover_path,
-                    # Owner consent for private retention is not a public
-                    # redistribution licence; preserve the distinction.
-                    "rightsEvidence": (
-                        "Owner requested private-library preservation of the supplied cover; "
-                        "redistribution permission unverified."
-                    ),
-                    "attribution": (
-                        "MangaDex cover source; rights retained by respective copyright holders."
-                    ),
+        submitted.append(
+            {
+                "mangaId": _identity(slug, title),
+                "title": title,
+                "source": origin,
+                "metadata": {
+                    "aliases": meta["aliases"],
+                    "creators": meta["creators"],
+                    "creatorRoles": [
+                        {"name": item["name"], "role": item["role"]} for item in meta["creatorRoles"]
+                    ],
+                    "tags": meta["tags"],
+                    "synopsis": meta["synopsis"],
+                    "publicationStatus": meta["publicationStatus"],
+                    "cover": {
+                        "file": cover_path,
+                        # Owner consent for private retention is not a public
+                        # redistribution licence; preserve the distinction.
+                        "rightsEvidence": (
+                            "Owner requested private-library preservation of the supplied cover; "
+                            "redistribution permission unverified."
+                        ),
+                        "attribution": (
+                            "MangaDex cover source; rights retained by respective copyright holders."
+                        ),
+                    },
                 },
-            },
-        })
+            }
+        )
 
     candidate = {
         "schemaVersion": 1,
