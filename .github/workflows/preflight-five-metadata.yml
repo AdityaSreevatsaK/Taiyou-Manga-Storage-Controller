@@ -44,3 +44,5 @@ jobs:
         shell: bash
         run: rm -rf -- "${RUNNER_TEMP}/metadata-transfer"
 # Source metadata and images never leave the private runner. No public artifacts.
+
+# All downloaded source bytes remain ephemeral on the GitHub Actions runner.
