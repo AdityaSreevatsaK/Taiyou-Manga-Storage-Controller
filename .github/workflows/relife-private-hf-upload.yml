@@ -1,0 +1,79 @@
+name: Upload authorised ReLIFE manga to private Hugging Face
+
+on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/relife-private-hf-upload.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: hf-manga-private-write
+  cancel-in-progress: false
+
+jobs:
+  relife-upload:
+    runs-on: ubuntu-latest
+    environment: hf-manga-upload
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install validated Controller and Hugging Face Xet uploader
+        run: |
+          python -m pip install --upgrade "setuptools>=84.1.0"
+          python -m pip install -e ".[huggingface]"
+      - name: Retrieve the 12 verified original ReLIFE Actions source artefacts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/fetch_relife_actions_artifacts.py --output "${RUNNER_TEMP}/relife-source-zips"
+      - name: Independently verify all original CBZ and page hashes
+        run: |
+          python -m taiyou_manga relife-preflight \
+            --artifact-dir "${RUNNER_TEMP}/relife-source-zips"
+      - name: Build full ReLIFE candidate with persistent, deterministic private identities
+        run: |
+          python -m taiyou_manga relife-stage \
+            --artifact-dir "${RUNNER_TEMP}/relife-source-zips" \
+            --output "${RUNNER_TEMP}/relife-candidate" \
+            --state-file "${RUNNER_TEMP}/relife-private-ids.json" \
+            --stable-ids
+          python -m taiyou_manga verify --bundle "${RUNNER_TEMP}/relife-candidate"
+      - name: Preview private dataset commit without writing media
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_DISABLE_TELEMETRY: '1'
+        run: |
+          python -m taiyou_manga.hf_upload \
+            --bundle "${RUNNER_TEMP}/relife-candidate" \
+            --registry "${RUNNER_TEMP}/relife-private-ids.json" \
+            --plan-file "${RUNNER_TEMP}/relife-upload-preview.json"
+      - name: Execute user-approved resumable, revision-guarded private upload
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_DISABLE_TELEMETRY: '1'
+        run: |
+          python -m taiyou_manga.hf_upload \
+            --bundle "${RUNNER_TEMP}/relife-candidate" \
+            --registry "${RUNNER_TEMP}/relife-private-ids.json" \
+            --plan-file "${RUNNER_TEMP}/relife-upload-preview.json" \
+            --apply --approve
+      - name: Delete runner-local media and private identity files
+        if: always()
+        shell: bash
+        run: |
+          rm -rf -- "${RUNNER_TEMP}/relife-source-zips" \
+            "${RUNNER_TEMP}/relife-candidate" \
+            "${RUNNER_TEMP}/relife-private-ids.json" \
+            "${RUNNER_TEMP}/relife-private-ids.json.lock" \
+            "${RUNNER_TEMP}/relife-upload-preview.json"
+
+# No media is committed to the public Controller or Retriever repositories.
+# The protected HF_TOKEN is exposed only to the two private Hub steps.
+# Catalogue publication is the final revision-guarded HF commit after all pages.
