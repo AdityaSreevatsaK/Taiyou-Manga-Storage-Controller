@@ -11,7 +11,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from .domain import ControllerError
 from .hf_bulk import plan_upload, upload
@@ -129,7 +129,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             [
                 {
                     "normalisedTitle": row["normalisedTitle"],
-                    "mangaIds": ", ".join(str(m) for m in row["mangaIds"]),
+                    "mangaIds": ", ".join(cast(list[str], row["mangaIds"])),
                     "count": row["count"],
                 }
                 for row in rows
