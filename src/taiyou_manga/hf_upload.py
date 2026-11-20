@@ -180,7 +180,12 @@ def _inspect(
     permission_path = f"{PREFIX}/attestation.json"
     metadata_records = [
         *metadata,
-        UploadFile(permission_path, Path("."), hashlib.sha256(_json_bytes(extras)).hexdigest(), len(_json_bytes(extras))),
+        UploadFile(
+            permission_path,
+            Path("."),
+            hashlib.sha256(_json_bytes(extras)).hexdigest(),
+            len(_json_bytes(extras)),
+        ),
     ]
     completion = _final_metadata(metadata_records, batches)
     final_paths = {item.path for item in metadata_records} | {completion[0]}
@@ -199,11 +204,19 @@ def _inspect(
             raise UploadConflict("Published ReLIFE marker refers to missing media or metadata")
         return (
             {
-                "status": "already-complete", "expectedRevision": sha, "totalParts": len(batches),
-                "remainingParts": 0, "chapters": EXPECTED_CHAPTERS, "pages": EXPECTED_PAGES,
+                "status": "already-complete",
+                "expectedRevision": sha,
+                "totalParts": len(batches),
+                "remainingParts": 0,
+                "chapters": EXPECTED_CHAPTERS,
+                "pages": EXPECTED_PAGES,
                 "manifestDigest": json.loads(completion[1])["metadataDigest"],
                 "uploadAllowed": True,
-            }, batches, completion, sha, remote_files,
+            },
+            batches,
+            completion,
+            sha,
+            remote_files,
         )
     if any(path in remote_files for path in final_paths):
         raise UploadConflict("Partial or conflicting publication metadata already exists")
@@ -222,12 +235,19 @@ def _inspect(
             remaining += 1
     return (
         {
-            "status": "append-only-ready", "expectedRevision": sha,
-            "totalParts": len(batches), "remainingParts": remaining,
-            "chapters": EXPECTED_CHAPTERS, "pages": EXPECTED_PAGES,
+            "status": "append-only-ready",
+            "expectedRevision": sha,
+            "totalParts": len(batches),
+            "remainingParts": remaining,
+            "chapters": EXPECTED_CHAPTERS,
+            "pages": EXPECTED_PAGES,
             "manifestDigest": json.loads(completion[1])["metadataDigest"],
             "uploadAllowed": True,
-        }, batches, completion, sha, remote_files,
+        },
+        batches,
+        completion,
+        sha,
+        remote_files,
     )
 
 
@@ -270,8 +290,12 @@ def apply_relife_upload(
         if api.dataset_info(DATASET, token=token).sha != head:
             raise UploadConflict("Private dataset changed during the upload")
         result = api.create_commit(
-            repo_id=DATASET, repo_type="dataset", operations=operations,
-            commit_message=message, parent_commit=head, token=token,
+            repo_id=DATASET,
+            repo_type="dataset",
+            operations=operations,
+            commit_message=message,
+            parent_commit=head,
+            token=token,
             num_threads=5,
         )
         new_sha = getattr(result, "oid", None)
@@ -301,15 +325,18 @@ def apply_relife_upload(
     ops.append(CommitOperationAdd(path_in_repo=permission_path, path_or_fileobj=_json_bytes(_attestation())))
     ops.append(CommitOperationAdd(path_in_repo=completion[0], path_or_fileobj=completion[1]))
     commit(ops, "Publish verified private ReLIFE catalogue after complete media upload")
-    expected = {item.path for item in media} | {item.path for item in metadata} | {
-        permission_path, completion[0]
-    }
+    expected = (
+        {item.path for item in media} | {item.path for item in metadata} | {permission_path, completion[0]}
+    )
     actual = set(api.list_repo_files(DATASET, repo_type="dataset", revision=head, token=token))
     if not expected.issubset(actual):
         raise UploadConflict("HF dataset commit succeeded but post-upload file inventory is incomplete")
     return {
-        "status": "complete", "revision": head, "partsWritten": added,
-        "chapters": EXPECTED_CHAPTERS, "pages": EXPECTED_PAGES,
+        "status": "complete",
+        "revision": head,
+        "partsWritten": added,
+        "chapters": EXPECTED_CHAPTERS,
+        "pages": EXPECTED_PAGES,
         "private": True,
     }
 
