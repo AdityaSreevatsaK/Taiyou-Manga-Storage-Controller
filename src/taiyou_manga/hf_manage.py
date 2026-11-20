@@ -31,7 +31,9 @@ TITLE_SEPARATOR = re.compile(r"[\W_]+", flags=re.UNICODE)
 
 
 def normalized_title(title: str) -> str:
-    return TITLE_SEPARATOR.sub("", unicodedata.normalize("NFKC", title).casefold())
+    expanded = unicodedata.normalize("NFKD", title).casefold()
+    stripped = "".join(ch for ch in expanded if not unicodedata.combining(ch))
+    return TITLE_SEPARATOR.sub("", stripped)
 
 
 def safe_report_string(value: object) -> str:
