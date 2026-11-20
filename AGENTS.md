@@ -9,3 +9,5 @@
 - Guard all future mutations with preview, explicit owner authorisation, revision preconditions, immutable backups, failure recovery and tests.
 - Keep Python 3.11/3.12 and Windows PowerShell working. `python -m unittest discover -s tests -v` needs no paid accounts.
 - Do not claim green CI if jobs have not executed. Document the exact failed/unavailable gate.
+
+- CRITICAL P0 (2026-11-20): **No further HF manga image uploads or catalogue edits** until canonical `data/library.json` format, full independent backup, private disposable migration test and reader compatibility are verified. Root `catalogue.json` is a legacy **source** only. Existing ReLIFE bytes and IDs must not be deleted or overwritten. PR #20 was closed. Do not merge or reinstate a job that writes legacy root `catalogue.json`.
