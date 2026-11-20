@@ -35,7 +35,7 @@ every write uses an explicit approval or exact-title confirmation.
 | 7 Backup catalogue | Exact byte-for-byte copy of private \`data/library.json\` | **Catalogue backup is not a full-media backup** |
 | 8 Restore novel | Restore a reversibly de-listed manga | Requires saved private \`control/delist-backups/<revision>/library.json\` and original media present; dry-run + approval |
 | 9 Delete novel | Reversible de-list of one manga | Original images, chapters, covers, manifests and personal data remain intact; no permanent deletion |
-| 10 Upload covers | Candidate-based private metadata/cover uploader | Uses strict original-format cover verification, source provenance, rights and snapshot backup |
+| 10 Upload covers | Direct ZIP or candidate-based private metadata/cover uploader | Accepts a bounded ZIP with metadata.json and covers/, retaining original formats, source provenance, rights and snapshot backup |
 | 11 CLEAR private HF data | **Deliberately disabled** | Entire-dataset wipe was unsafe in past; never recreated here |
 | 12 Chapter inventory | All chapters in private CSV | Includes immutable chapter IDs and page counts |
 | 13 Audit covers | Catalogue completeness CSV | Identifies missing cover references; use manifest/deep integrity to verify remote presence/bytes |
@@ -99,6 +99,24 @@ For network interruptions, rerun the preview before restarting the apply.
 Partial media batches retain exact checksum checkpoints. The final publication
 of each title follows verified upload of its chapter manifests and page bytes,
 and backs up the old catalogue in the private dataset.
+
+## Upload covers directly from a ZIP
+
+A cover ZIP contains one metadata.json (or candidates.json) using the
+existing canonical publication metadata candidate format, plus original
+cover image files under covers/. No extra schema is introduced. All files
+are private and locally extracted only into a disposable directory; unsafe
+paths, symlinks, duplicate names, excessive compression and oversized images
+are refused.
+
+    py -3 -m taiyou_manga.hf_cli upload-covers --zip private-covers.zip --plan-file reports/cover-plan.json
+    # Inspect conflicts, permissions, hashes, affected fields and source IDs.
+    py -3 -m taiyou_manga.hf_cli upload-covers --zip private-covers.zip --plan-file reports/cover-plan.json --apply --approve
+
+The existing metadata reconciliation implementation backs up the prior catalogue,
+preserves manually corrected fields and only adds original cover bytes to new
+private paths. The catalogue and cover image are committed together with
+source attribution and permission evidence.
 
 ## Delete one manga safely, then restore it
 
