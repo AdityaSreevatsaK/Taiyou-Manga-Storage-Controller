@@ -36,3 +36,7 @@ The owner approval is specific to the ReLIFE title and cannot be reused as permi
 ## Reader integration
 
 After successful upload, the existing Manga Library still needs a private Hugging Face asset adaptor before the new ReLIFE entry can be read in the deployed UI. Upload success must not be presented as completed reader integration.
+
+## Migration hold after ReLIFE success
+
+The old ReLIFE upload **completed** but its remote layout is legacy. See [the canonical manga storage contract](DATA_CONTRACTS.md). The old upload workflow has been retired. **Do not use it or the superseded four-title proposal to append further titles** until the canonical `data/library.json` contract and private staging migration have been verified. Existing media remains unchanged.
