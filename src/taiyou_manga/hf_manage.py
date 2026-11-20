@@ -99,16 +99,12 @@ def title_conflicts(entries: list[dict[str, Any]]) -> list[dict[str, object]]:
     ]
 
 
-def quick_integrity(
-    entries: list[dict[str, Any]], files: set[str]
-) -> dict[str, object]:
+def quick_integrity(entries: list[dict[str, Any]], files: set[str]) -> dict[str, object]:
     missing_manifests: list[str] = []
     missing_covers: list[str] = []
     missing_page_series: list[str] = []
     indexed_manga = {entry["id"] for entry in entries}
-    seen_paths = {
-        match.group(1) for path in files if (match := MANGA_ROOT.match(path))
-    }
+    seen_paths = {match.group(1) for path in files if (match := MANGA_ROOT.match(path))}
     for item in entries:
         if item["id"] not in seen_paths:
             missing_page_series.append(item["id"])
@@ -153,8 +149,7 @@ def _manifest(api: Any, token: str, sha: str, item: dict[str, Any], chapter: dic
 
 
 def verified_integrity(
-    api: Any, token: str, sha: str, files: set[str],
-    entries: list[dict[str, Any]], *, deep: bool = False
+    api: Any, token: str, sha: str, files: set[str], entries: list[dict[str, Any]], *, deep: bool = False
 ) -> dict[str, object]:
     result = quick_integrity(entries, files)
     failures: list[str] = []
@@ -175,27 +170,35 @@ def verified_integrity(
                         continue
                     if deep:
                         from .images import check_bytes
+
                         blob = _read_file(target, sha, token, 25_000_000)
                         checked = check_bytes(blob, target)
-                        if (checked.checksum != page.sha256 or checked.byte_size != page.byteSize
-                                or checked.width != page.width or checked.height != page.height
-                                or checked.mime != page.mimeType):
+                        if (
+                            checked.checksum != page.sha256
+                            or checked.byte_size != page.byteSize
+                            or checked.width != page.width
+                            or checked.height != page.height
+                            or checked.mime != page.mimeType
+                        ):
                             failures.append(f"Image checksum, dimensions or MIME mismatch: {target}")
                             continue
                         verified_bytes += len(blob)
                     verified_pages += 1
             except (ControllerError, ValueError, OSError, KeyError) as exc:
                 failures.append(f"Invalid remote chapter {chapter['id']}: {type(exc).__name__}")
-    result.update({
-        "mode": "full-image-sha256-and-decode" if deep else "manifest-and-path-check",
-        "verifiedChapters": verified_chapters,
-        "verifiedPages": verified_pages,
-        "verifiedImageBytes": verified_bytes,
-        "failures": failures,
-        "complete": bool(result["complete"]) and not failures
+    result.update(
+        {
+            "mode": "full-image-sha256-and-decode" if deep else "manifest-and-path-check",
+            "verifiedChapters": verified_chapters,
+            "verifiedPages": verified_pages,
+            "verifiedImageBytes": verified_bytes,
+            "failures": failures,
+            "complete": bool(result["complete"])
+            and not failures
             and verified_chapters == result["chapters"]
             and verified_pages == result["pages"],
-    })
+        }
+    )
     return result
 
 
@@ -210,8 +213,11 @@ def catalogue_backup(token: str, output: Path) -> dict[str, object]:
     # A catalogue backup is NOT a backup of original manga media.
     _new_file(output, contents)
     return {
-        "status": "catalogue-backed-up", "revision": sha, "entries": len(entries),
-        "sha256": hashlib.sha256(contents).hexdigest(), "path": str(output),
+        "status": "catalogue-backed-up",
+        "revision": sha,
+        "entries": len(entries),
+        "sha256": hashlib.sha256(contents).hexdigest(),
+        "path": str(output),
         "mediaFilesBackedUp": False,
     }
 
@@ -231,7 +237,8 @@ def export_report(token: str, output: Path, *, depth: str = "quick") -> dict[str
     if depth not in ("quick", "manifest", "deep"):
         raise ControllerError("Unsupported private manga integrity verification mode")
     report = (
-        quick_integrity(entries, files) if depth == "quick"
+        quick_integrity(entries, files)
+        if depth == "quick"
         else verified_integrity(api, token, sha, files, entries, deep=depth == "deep")
     )
     report["revision"] = sha
@@ -246,28 +253,42 @@ def export_report(token: str, output: Path, *, depth: str = "quick") -> dict[str
     elif output.suffix.casefold() == ".html":
         # A private offline dashboard, HTML-escaped; no remote media URLs or scripts.
         boxes = "".join(
-            "<tr><td>" + html.escape(str(row["id"])) + "</td><td>"
-            + html.escape(row["title"]) + "</td><td>"
-            + html.escape(", ".join(row["missing"]) or "Complete") + "</td></tr>"
+            "<tr><td>"
+            + html.escape(str(row["id"]))
+            + "</td><td>"
+            + html.escape(row["title"])
+            + "</td><td>"
+            + html.escape(", ".join(row["missing"]) or "Complete")
+            + "</td></tr>"
             for row in completeness(entries)["entries"]
         )
         doc = (
             '<!doctype html><html lang="en"><meta charset="utf-8"><title>Manga library health</title>'
-            '<style>body{font:16px system-ui;margin:3rem auto;max-width:950px;line-height:1.5}'
-            'th,td{padding:.55rem;border-bottom:1px solid #aaa;text-align:left}</style>'
+            "<style>body{font:16px system-ui;margin:3rem auto;max-width:950px;line-height:1.5}"
+            "th,td{padding:.55rem;border-bottom:1px solid #aaa;text-align:left}</style>"
             "<h1>Private manga library health</h1><p>Verified revision: "
-            + html.escape(sha) + "</p><p>Series: " + str(report["series"])
-            + "; Chapters: " + str(report["chapters"]) + "; Pages: " + str(report["pages"])
-            + '</p><table><tr><th>ID</th><th>Title</th><th>Missing metadata</th></tr>'
-            + boxes + "</table></html>"
+            + html.escape(sha)
+            + "</p><p>Series: "
+            + str(report["series"])
+            + "; Chapters: "
+            + str(report["chapters"])
+            + "; Pages: "
+            + str(report["pages"])
+            + "</p><table><tr><th>ID</th><th>Title</th><th>Missing metadata</th></tr>"
+            + boxes
+            + "</table></html>"
         )
         _new_file(output, doc.encode("utf-8"))
     else:
         raise ControllerError("Choose .json, .csv or .html for the report")
     return {
-        "status": "report-created", "revision": sha, "report": str(output),
-        "series": report["series"], "chapters": report["chapters"],
-        "pages": report["pages"], "complete": report["complete"],
+        "status": "report-created",
+        "revision": sha,
+        "report": str(output),
+        "series": report["series"],
+        "chapters": report["chapters"],
+        "pages": report["pages"],
+        "complete": report["complete"],
         "verificationMode": depth,
     }
 
@@ -282,14 +303,14 @@ def _file_digest(path: Path) -> str:
 
 def _download_file(name: str, sha: str, token: str) -> Path:
     from huggingface_hub import hf_hub_download
-    return Path(hf_hub_download(
-        repo_id=DATASET, filename=name, repo_type="dataset", revision=sha, token=token
-    ))
+
+    return Path(
+        hf_hub_download(repo_id=DATASET, filename=name, repo_type="dataset", revision=sha, token=token)
+    )
 
 
 def _series_archive(
-    token: str, sha: str, files: set[str], item: dict[str, Any], output: Path,
-    *, catalogue: bytes
+    token: str, sha: str, files: set[str], item: dict[str, Any], output: Path, *, catalogue: bytes
 ) -> dict[str, object]:
     if output.exists() or output.is_symlink():
         return {"status": "skipped-existing", "id": item["id"], "path": str(output)}
@@ -332,26 +353,34 @@ def _series_archive(
             zipout.writestr("catalogue/source-library.json", catalogue)
             zipout.writestr(
                 "backup-manifest.json",
-                _json_data({
-                    "schemaVersion": 1, "mediaKind": "manga",
-                    "revision": sha, "mangaId": item["id"],
-                    "files": manifest_rows, "complete": True,
-                }),
+                _json_data(
+                    {
+                        "schemaVersion": 1,
+                        "mediaKind": "manga",
+                        "revision": sha,
+                        "mangaId": item["id"],
+                        "files": manifest_rows,
+                        "complete": True,
+                    }
+                ),
             )
         with zipfile.ZipFile(temp, "r") as zipcheck:
             if zipcheck.testzip() is not None:
                 raise ControllerError("Private manga archive failed post-write CRC verification")
         temp.replace(output)
-        return {"status": "downloaded", "id": item["id"], "path": str(output),
-                "files": len(originals), "sha256": _file_digest(output)}
+        return {
+            "status": "downloaded",
+            "id": item["id"],
+            "path": str(output),
+            "files": len(originals),
+            "sha256": _file_digest(output),
+        }
     finally:
         if temp is not None:
             temp.unlink(missing_ok=True)
 
 
-def download_all(
-    token: str, directory: Path, *, manga_id: str | None = None
-) -> dict[str, object]:
+def download_all(token: str, directory: Path, *, manga_id: str | None = None) -> dict[str, object]:
     _, sha, files, catalogue, entries = snapshot(token)
     if directory.is_symlink():
         raise ControllerError("Private manga download destination may not be a symlink")
@@ -377,10 +406,12 @@ def download_all(
         _json_data({"sourceRevision": sha, "series": len(results), "results": results}),
     )
     return {
-        "status": "download-finished", "revision": sha,
+        "status": "download-finished",
+        "revision": sha,
         "downloaded": sum(item["status"] == "downloaded" for item in results),
         "skipped": sum(item["status"] == "skipped-existing" for item in results),
-        "directory": str(directory), "series": len(results),
+        "directory": str(directory),
+        "series": len(results),
     }
 
 
@@ -403,17 +434,30 @@ def local_sync(token: str, bundles: Path, report: Path) -> dict[str, object]:
         item = local[0]
         old = by_id.get(item["id"])
         status = (
-            "not-uploaded" if old is None
-            else "catalogue-metadata-differs" if old != item
+            "not-uploaded"
+            if old is None
+            else "catalogue-metadata-differs"
+            if old != item
             else "matching-catalogue-structure"
         )
-        rows.append({"id": item["id"], "title": item["title"], "status": status,
-                     "localChapters": len(item["chapters"]),
-                     "remoteChapters": len(old["chapters"]) if old else 0})
+        rows.append(
+            {
+                "id": item["id"],
+                "title": item["title"],
+                "status": status,
+                "localChapters": len(item["chapters"]),
+                "remoteChapters": len(old["chapters"]) if old else 0,
+            }
+        )
     _csv_file(report, rows, ["id", "title", "status", "localChapters", "remoteChapters"])
-    return {"status": "sync-report", "revision": sha, "local": len(rows),
-            "missing": sum(row["status"] == "not-uploaded" for row in rows),
-            "report": str(report), "note": "Metadata structure only, not byte-level file sync"}
+    return {
+        "status": "sync-report",
+        "revision": sha,
+        "local": len(rows),
+        "missing": sum(row["status"] == "not-uploaded" for row in rows),
+        "report": str(report),
+        "note": "Metadata structure only, not byte-level file sync",
+    }
 
 
 def delete_preview(token: str, manga_id: str, output: Path) -> dict[str, object]:
@@ -424,12 +468,16 @@ def delete_preview(token: str, manga_id: str, output: Path) -> dict[str, object]
     item = selected[0]
     # Reversible de-list only. Original files are retained without exceptions.
     plan = {
-        "operation": "delist-manga-only", "revision": sha, "id": manga_id,
-        "title": item["title"], "catalogueSha256": hashlib.sha256(old).hexdigest(),
-        "remainingCatalogueSha256": hashlib.sha256(_json_data(canonical_library(
-            [row for row in entries if row["id"] != manga_id]
-        ))).hexdigest(),
-        "preservedFiles": len(files), "chaptersRetained": len(item["chapters"]),
+        "operation": "delist-manga-only",
+        "revision": sha,
+        "id": manga_id,
+        "title": item["title"],
+        "catalogueSha256": hashlib.sha256(old).hexdigest(),
+        "remainingCatalogueSha256": hashlib.sha256(
+            _json_data(canonical_library([row for row in entries if row["id"] != manga_id]))
+        ).hexdigest(),
+        "preservedFiles": len(files),
+        "chaptersRetained": len(item["chapters"]),
         "remoteFileDeletionCount": 0,
     }
     _new_file(output, _json_data(plan))
@@ -445,12 +493,16 @@ def delete_apply(token: str, manga_id: str, plan_path: Path, confirm_title: str)
         raise ControllerError("Exact immutable manga ID and display-title confirmation are required")
     expected = json.loads(plan_path.read_bytes())
     result = {
-        "operation": "delist-manga-only", "revision": sha, "id": manga_id,
-        "title": selected[0]["title"], "catalogueSha256": hashlib.sha256(before).hexdigest(),
-        "remainingCatalogueSha256": hashlib.sha256(_json_data(canonical_library(
-            [row for row in entries if row["id"] != manga_id]
-        ))).hexdigest(),
-        "preservedFiles": len(files), "chaptersRetained": len(selected[0]["chapters"]),
+        "operation": "delist-manga-only",
+        "revision": sha,
+        "id": manga_id,
+        "title": selected[0]["title"],
+        "catalogueSha256": hashlib.sha256(before).hexdigest(),
+        "remainingCatalogueSha256": hashlib.sha256(
+            _json_data(canonical_library([row for row in entries if row["id"] != manga_id]))
+        ).hexdigest(),
+        "preservedFiles": len(files),
+        "chaptersRetained": len(selected[0]["chapters"]),
         "remoteFileDeletionCount": 0,
     }
     if expected != result:
@@ -461,30 +513,37 @@ def delete_apply(token: str, manga_id: str, plan_path: Path, confirm_title: str)
     if api.dataset_info(DATASET, token=token).sha != sha:
         raise UploadConflict("Dataset changed while attempting to de-list manga")
     from huggingface_hub import CommitOperationAdd
+
     api.create_commit(
-        repo_id=DATASET, repo_type="dataset", revision="main", token=token,
-        parent_commit=sha, commit_message=f"Reversibly de-list manga {manga_id}",
+        repo_id=DATASET,
+        repo_type="dataset",
+        revision="main",
+        token=token,
+        parent_commit=sha,
+        commit_message=f"Reversibly de-list manga {manga_id}",
         operations=[
             CommitOperationAdd(path_in_repo=backup_path, path_or_fileobj=before),
             CommitOperationAdd(
                 path_in_repo=CANONICAL_CATALOGUE,
-                path_or_fileobj=_json_data(canonical_library(
-                    [row for row in entries if row["id"] != manga_id]
-                )),
+                path_or_fileobj=_json_data(
+                    canonical_library([row for row in entries if row["id"] != manga_id])
+                ),
             ),
         ],
     )
     _, _, after_files, _, after_entries = snapshot(token)
     if manga_id in {entry["id"] for entry in after_entries} or not files.issubset(after_files):
         raise UploadConflict("De-list verification failed or original files changed")
-    return {"status": "delisted", "mangaId": manga_id, "filesDeleted": 0,
-            "catalogueBackup": backup_path}
-
+    return {"status": "delisted", "mangaId": manga_id, "filesDeleted": 0, "catalogueBackup": backup_path}
 
 
 def restore_delisted(
-    token: str, manga_id: str, original_revision: str,
-    plan_file: Path, *, approve: bool = False,
+    token: str,
+    manga_id: str,
+    original_revision: str,
+    plan_file: Path,
+    *,
+    approve: bool = False,
 ) -> dict[str, object]:
     """Re-list a previously removed manga, keeping original media and IDs."""
     if not re.fullmatch(r"[0-9a-f]{40}", original_revision):
@@ -504,7 +563,8 @@ def restore_delisted(
         raise ControllerError("Chosen backup has no matching immutable manga ID")
     target = matches[0]
     new = [
-        *existing, target,
+        *existing,
+        target,
     ]
     if title_conflicts(new):
         raise ControllerError("Restoring would introduce ambiguous manga titles")
@@ -517,16 +577,18 @@ def restore_delisted(
             raise ControllerError("Original manga page is missing, cannot safely restore")
     if target.get("cover") and cover_asset_path(target["cover"], manga_id) not in files:
         raise ControllerError("Original manga cover image is missing")
-    canonical = _json_data(canonical_library(sorted(
-        new, key=lambda row: row["title"].casefold()
-    )))
+    canonical = _json_data(canonical_library(sorted(new, key=lambda row: row["title"].casefold())))
     plan = {
-        "operation": "restore-delisted-manga", "mangaId": manga_id,
-        "title": target["title"], "expectedRevision": sha,
-        "sourceBackup": backup, "sourceBackupSha256": hashlib.sha256(saved).hexdigest(),
+        "operation": "restore-delisted-manga",
+        "mangaId": manga_id,
+        "title": target["title"],
+        "expectedRevision": sha,
+        "sourceBackup": backup,
+        "sourceBackupSha256": hashlib.sha256(saved).hexdigest(),
         "catalogueSha256": hashlib.sha256(before).hexdigest(),
         "newCatalogueSha256": hashlib.sha256(canonical).hexdigest(),
-        "remoteMediaWrites": 0, "remoteMediaDeletes": 0,
+        "remoteMediaWrites": 0,
+        "remoteMediaDeletes": 0,
     }
     if not approve:
         _new_file(plan_file, _json_data(plan))
@@ -543,8 +605,12 @@ def restore_delisted(
     from huggingface_hub import CommitOperationAdd
 
     api.create_commit(
-        repo_id=DATASET, repo_type="dataset", revision="main", token=token,
-        parent_commit=sha, commit_message=f"Restore de-listed manga {manga_id}",
+        repo_id=DATASET,
+        repo_type="dataset",
+        revision="main",
+        token=token,
+        parent_commit=sha,
+        commit_message=f"Restore de-listed manga {manga_id}",
         operations=[
             CommitOperationAdd(path_in_repo=backup_path, path_or_fileobj=before),
             CommitOperationAdd(path_in_repo=CANONICAL_CATALOGUE, path_or_fileobj=canonical),
@@ -553,5 +619,4 @@ def restore_delisted(
     _, _, after_files, _, after_entries = snapshot(token)
     if not files.issubset(after_files) or manga_id not in {entry["id"] for entry in after_entries}:
         raise UploadConflict("Private restored manga verification failed")
-    return {"status": "restored", "mangaId": manga_id, "remoteMediaWrites": 0,
-            "catalogueBackup": backup_path}
+    return {"status": "restored", "mangaId": manga_id, "remoteMediaWrites": 0, "catalogueBackup": backup_path}

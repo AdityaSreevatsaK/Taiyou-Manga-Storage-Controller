@@ -36,9 +36,7 @@ def record(manga_id: str = "mng_aaaaaaaaaaaa", title: str = "Demo Manga") -> dic
         "tags": [],
         "publicationStatus": "unknown",
         "direction": "vertical",
-        "chapters": [
-            {"id": chapter, "label": "Chapter 1", "sequence": 0, "pageCount": 1}
-        ],
+        "chapters": [{"id": chapter, "label": "Chapter 1", "sequence": 0, "pageCount": 1}],
     }
 
 
@@ -72,7 +70,8 @@ class ManagementPureTests(unittest.TestCase):
         self.assertEqual(report["chapters"], 1)
         self.assertEqual(report["pages"], 1)
         full = {
-            "data/library.json", "data/manifests/ch_bbbbbbbbbbbb.json",
+            "data/library.json",
+            "data/manifests/ch_bbbbbbbbbbbb.json",
             f"data/manga/{item['id']}/ch_bbbbbbbbbbbb/pg_cccccccccccc.jpg",
             f"data/covers/{item['id']}.jpg",
         }
@@ -84,16 +83,35 @@ class ManagementPureTests(unittest.TestCase):
     def test_cli_has_expected_novel_parity_commands_and_safe_deletion(self) -> None:
         commands = parser()._subparsers._group_actions[0].choices
         for name in [
-            "bulk-upload", "download", "list", "conflicts", "verify", "sync",
-            "backup-catalogue", "restore", "delete", "covers", "chapters",
-            "compare-retriever", "health", "metadata-report", "metadata", "cleanup", "menu",
+            "bulk-upload",
+            "download",
+            "list",
+            "conflicts",
+            "verify",
+            "sync",
+            "backup-catalogue",
+            "restore",
+            "delete",
+            "covers",
+            "chapters",
+            "compare-retriever",
+            "health",
+            "metadata-report",
+            "metadata",
+            "cleanup",
+            "menu",
         ]:
             self.assertIn(name, commands)
         self.assertNotIn("clear-all", commands)
-        args = parser().parse_args([
-            "delete", "--manga-id", "mng_aaaaaaaaaaaa",
-            "--plan-file", "reports/delist.json",
-        ])
+        args = parser().parse_args(
+            [
+                "delete",
+                "--manga-id",
+                "mng_aaaaaaaaaaaa",
+                "--plan-file",
+                "reports/delist.json",
+            ]
+        )
         self.assertFalse(args.apply)
         self.assertFalse(args.approve)
         self.assertEqual(args.confirm_title, "")
@@ -112,14 +130,20 @@ class BulkCandidateTests(unittest.TestCase):
         image_path.mkdir(parents=True)
         (image_path / f"{page_id}.png").write_bytes(self.blob)
         self.manifest = {
-            "schemaVersion": 1, "mediaKind": "manga", "chapterId": chapter_id,
-            "pages": [{
-                "id": page_id,
-                "assetPath": f"manga/{self.item['id']}/{chapter_id}/{page_id}.png",
-                "mimeType": "image/png", "width": 10, "height": 10,
-                "byteSize": len(self.blob),
-                "sha256": hashlib.sha256(self.blob).hexdigest(),
-            }],
+            "schemaVersion": 1,
+            "mediaKind": "manga",
+            "chapterId": chapter_id,
+            "pages": [
+                {
+                    "id": page_id,
+                    "assetPath": f"manga/{self.item['id']}/{chapter_id}/{page_id}.png",
+                    "mimeType": "image/png",
+                    "width": 10,
+                    "height": 10,
+                    "byteSize": len(self.blob),
+                    "sha256": hashlib.sha256(self.blob).hexdigest(),
+                }
+            ],
         }
         (self.root / "manifests").mkdir()
         (self.root / "manifests" / f"{chapter_id}.json").write_text(
@@ -158,16 +182,19 @@ class BulkCandidateTests(unittest.TestCase):
 
     def test_bulk_rejects_missing_source_permission_or_changed_page(self) -> None:
         (self.root / "rights.json").unlink()
-        with patch("taiyou_manga.hf_bulk.verify_bundle", return_value={
-            **self.verified, "rightsDeclared": False,
-        }):
+        with patch(
+            "taiyou_manga.hf_bulk.verify_bundle",
+            return_value={
+                **self.verified,
+                "rightsDeclared": False,
+            },
+        ):
             with self.assertRaisesRegex(ControllerError, "rights.json"):
                 load_bundles(self.root)
-        self.root.joinpath("rights.json").write_text(
-            json.dumps({"title": "Demo Manga"}), encoding="utf-8"
-        )
-        (self.root / "assets" / "manga" / self.item["id"] /
-         "ch_bbbbbbbbbbbb" / "pg_cccccccccccc.png").write_bytes(b"tampered")
+        self.root.joinpath("rights.json").write_text(json.dumps({"title": "Demo Manga"}), encoding="utf-8")
+        (
+            self.root / "assets" / "manga" / self.item["id"] / "ch_bbbbbbbbbbbb" / "pg_cccccccccccc.png"
+        ).write_bytes(b"tampered")
         with patch("taiyou_manga.hf_bulk.verify_bundle", return_value=self.verified):
             with self.assertRaisesRegex(ControllerError, "bytes disagree"):
                 load_bundles(self.root)
@@ -183,9 +210,7 @@ class DestructiveGuardsTests(unittest.TestCase):
 
     def test_delete_does_not_commit_without_matching_preapproved_plan(self) -> None:
         fake = SimpleNamespace(dataset_info=lambda *args, **kw: SimpleNamespace(sha="a" * 40))
-        contents = json.dumps({
-            "schemaVersion": 1, "mediaKind": "manga", "entries": [self.item]
-        }).encode()
+        contents = json.dumps({"schemaVersion": 1, "mediaKind": "manga", "entries": [self.item]}).encode()
         snap = (fake, "a" * 40, {"data/library.json"}, contents, [self.item])
         with patch("taiyou_manga.hf_manage.snapshot", return_value=snap):
             with self.assertRaisesRegex(ControllerError, "preview"):
@@ -211,7 +236,10 @@ class DestructiveGuardsTests(unittest.TestCase):
         with self.assertRaisesRegex(ControllerError, "Exact confirmation"):
             local_download_cleanup(self.root, self.plan, older_than_days=7, apply=True)
         local_download_cleanup(
-            self.root, self.plan, older_than_days=7, apply=True,
+            self.root,
+            self.plan,
+            older_than_days=7,
+            apply=True,
             confirm="DELETE OLD LOCAL TEMP FILES",
         )
         self.assertFalse(old.exists())

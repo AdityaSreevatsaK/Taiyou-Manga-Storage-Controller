@@ -124,13 +124,19 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     if cmd == "conflicts":
         _, sha, _, _, entries = snapshot(token)
         rows = title_conflicts(entries)
-        _csv_file(args.output, [
-            {"normalisedTitle": row["normalisedTitle"],
-             "mangaIds": ", ".join(row["mangaIds"]), "count": row["count"]}
-            for row in rows
-        ], ["normalisedTitle", "mangaIds", "count"])
-        return {"status": "conflicts-report", "revision": sha, "pairs": len(rows),
-                "report": str(args.output)}
+        _csv_file(
+            args.output,
+            [
+                {
+                    "normalisedTitle": row["normalisedTitle"],
+                    "mangaIds": ", ".join(row["mangaIds"]),
+                    "count": row["count"],
+                }
+                for row in rows
+            ],
+            ["normalisedTitle", "mangaIds", "count"],
+        )
+        return {"status": "conflicts-report", "revision": sha, "pairs": len(rows), "report": str(args.output)}
     if cmd in ("verify", "health", "covers"):
         return export_report(token, args.output, depth="quick" if cmd == "covers" else args.mode)
     if cmd == "sync":
@@ -141,8 +147,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         if args.apply and not args.approve:
             raise ControllerError("Restoration requires --apply and --approve")
         return restore_delisted(
-            token, args.manga_id, args.source_revision,
-            args.plan_file, approve=args.apply and args.approve,
+            token,
+            args.manga_id,
+            args.source_revision,
+            args.plan_file,
+            approve=args.apply and args.approve,
         )
     if cmd == "delete":
         if args.apply:
@@ -158,26 +167,34 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         _, sha, _, _, entries = snapshot(token)
         result = completeness(entries)
         from .hf_manage import _json_data, _new_file
+
         result["revision"] = sha
         _new_file(args.output, _json_data(result))
-        return {"status": "metadata-report", "revision": sha,
-                "complete": result["complete"], "manga": result["series"],
-                "report": str(args.output)}
+        return {
+            "status": "metadata-report",
+            "revision": sha,
+            "complete": result["complete"],
+            "manga": result["series"],
+            "report": str(args.output),
+        }
     if cmd == "metadata":
         from .hf_metadata import _api
+
         api = _api(token)
         if args.apply:
-            return apply_metadata(
-                api, token, args.candidates, args.plan_file, approve=args.approve
-            )
+            return apply_metadata(api, token, args.candidates, args.plan_file, approve=args.approve)
         result = preview_metadata(api, token, args.candidates)
         from .hf_manage import _json_data, _new_file
+
         _new_file(args.plan_file, _json_data(result))
         return result
     if cmd == "cleanup":
         return local_download_cleanup(
-            args.destination, args.output, apply=args.apply,
-            confirm=args.confirm, older_than_days=args.older_than_days,
+            args.destination,
+            args.output,
+            apply=args.apply,
+            confirm=args.confirm,
+            older_than_days=args.older_than_days,
         )
     raise ControllerError("Unknown private manga operation")
 
@@ -227,10 +244,17 @@ def interactive_menu() -> None:
                 plan = ask("NEW private preview JSON path (e.g. reports/upload-plan.json)")
                 invoke(["bulk-upload", "--source", source, "--plan-file", plan])
                 if ask("After reviewing preview, type APPROVE to run") == "APPROVE":
-                    invoke([
-                        "bulk-upload", "--source", source, "--plan-file", plan,
-                        "--apply", "--approve",
-                    ])
+                    invoke(
+                        [
+                            "bulk-upload",
+                            "--source",
+                            source,
+                            "--plan-file",
+                            plan,
+                            "--apply",
+                            "--approve",
+                        ]
+                    )
             elif choice in ("2", "19"):
                 invoke(["download", "--destination", ask("Private download folder (e.g. downloads)")])
             elif choice == "3":
@@ -238,42 +262,65 @@ def interactive_menu() -> None:
             elif choice == "4":
                 invoke(["conflicts", "--output", ask("NEW conflict CSV path")])
             elif choice in ("5", "16"):
-                mode = "manifest" if choice == "16" else (
-                    ask("Mode (quick/manifest/deep)") or "quick"
-                )
+                mode = "manifest" if choice == "16" else (ask("Mode (quick/manifest/deep)") or "quick")
                 invoke(["verify", "--mode", mode, "--output", ask("NEW report JSON path")])
             elif choice == "6":
-                invoke(["sync", "--bundles", ask("Local bundles directory"),
-                        "--output", ask("NEW sync CSV path")])
+                invoke(
+                    [
+                        "sync",
+                        "--bundles",
+                        ask("Local bundles directory"),
+                        "--output",
+                        ask("NEW sync CSV path"),
+                    ]
+                )
             elif choice == "7":
                 invoke(["backup-catalogue", "--output", ask("NEW private library.json path")])
             elif choice == "8":
                 manga = ask("Immutable manga ID")
                 source = ask("Original 40-character backup revision")
                 plan = ask("NEW restore preview JSON path")
-                invoke(["restore", "--manga-id", manga, "--source-revision", source,
-                        "--plan-file", plan])
+                invoke(["restore", "--manga-id", manga, "--source-revision", source, "--plan-file", plan])
                 if ask("After reviewing plan, type RESTORE") == "RESTORE":
-                    invoke(["restore", "--manga-id", manga, "--source-revision", source,
-                            "--plan-file", plan, "--apply", "--approve"])
+                    invoke(
+                        [
+                            "restore",
+                            "--manga-id",
+                            manga,
+                            "--source-revision",
+                            source,
+                            "--plan-file",
+                            plan,
+                            "--apply",
+                            "--approve",
+                        ]
+                    )
             elif choice == "9":
                 manga = ask("Immutable manga ID")
                 plan = ask("NEW de-list preview JSON path")
-                proposal = run(parser().parse_args([
-                    "delete", "--manga-id", manga, "--plan-file", plan
-                ]))
+                proposal = run(parser().parse_args(["delete", "--manga-id", manga, "--plan-file", plan]))
                 print(json.dumps(proposal, indent=2))
                 title = ask("Type EXACT displayed title to de-list (pages retained)")
                 if title == proposal["title"]:
-                    invoke(["delete", "--manga-id", manga, "--plan-file", plan,
-                            "--apply", "--approve", "--confirm-title", title])
+                    invoke(
+                        [
+                            "delete",
+                            "--manga-id",
+                            manga,
+                            "--plan-file",
+                            plan,
+                            "--apply",
+                            "--approve",
+                            "--confirm-title",
+                            title,
+                        ]
+                    )
             elif choice == "10":
                 source = ask("Private candidate metadata.json (covers beside it)")
                 plan = ask("NEW metadata and cover preview JSON path")
                 invoke(["metadata", "--candidates", source, "--plan-file", plan])
                 if ask("After reviewing preview, type APPROVE") == "APPROVE":
-                    invoke(["metadata", "--candidates", source, "--plan-file", plan,
-                            "--apply", "--approve"])
+                    invoke(["metadata", "--candidates", source, "--plan-file", plan, "--apply", "--approve"])
             elif choice == "11":
                 print("Whole-dataset deletion is disabled. Use reversible single-manga de-list instead.")
             elif choice == "12":
@@ -281,11 +328,17 @@ def interactive_menu() -> None:
             elif choice == "13":
                 invoke(["covers", "--output", ask("NEW missing-cover CSV path")])
             elif choice == "14":
-                invoke(["compare-retriever", "--inventory", ask("Local Retriever JSON file"),
-                        "--output", ask("NEW comparison CSV path")])
+                invoke(
+                    [
+                        "compare-retriever",
+                        "--inventory",
+                        ask("Local Retriever JSON file"),
+                        "--output",
+                        ask("NEW comparison CSV path"),
+                    ]
+                )
             elif choice == "15":
-                invoke(["health", "--mode", "quick",
-                        "--output", ask("NEW local health HTML path")])
+                invoke(["health", "--mode", "quick", "--output", ask("NEW local health HTML path")])
             elif choice == "17":
                 destination = ask("Local downloads folder")
                 report = ask("NEW cleanup preview JSON path")
@@ -293,8 +346,18 @@ def interactive_menu() -> None:
                 if ask("To remove old LOCAL .part files, type DELETE OLD LOCAL TEMP FILES") == (
                     "DELETE OLD LOCAL TEMP FILES"
                 ):
-                    invoke(["cleanup", "--destination", destination, "--output", report,
-                            "--apply", "--confirm", "DELETE OLD LOCAL TEMP FILES"])
+                    invoke(
+                        [
+                            "cleanup",
+                            "--destination",
+                            destination,
+                            "--output",
+                            report,
+                            "--apply",
+                            "--confirm",
+                            "DELETE OLD LOCAL TEMP FILES",
+                        ]
+                    )
             elif choice == "18":
                 invoke(["metadata-report", "--output", ask("NEW metadata report JSON path")])
                 if ask("Do you also have candidates to reconcile? (yes/no)") == "yes":
@@ -302,10 +365,12 @@ def interactive_menu() -> None:
                     plan = ask("NEW reconciliation preview JSON path")
                     invoke(["metadata", "--candidates", source, "--plan-file", plan])
                     if ask("After review, type APPROVE") == "APPROVE":
-                        invoke(["metadata", "--candidates", source, "--plan-file", plan,
-                                "--apply", "--approve"])
+                        invoke(
+                            ["metadata", "--candidates", source, "--plan-file", plan, "--apply", "--approve"]
+                        )
             elif choice == "20":
                 from .cli import interactive_menu as original
+
                 original()
             else:
                 print("Invalid selection")

@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -151,7 +149,8 @@ def _conflicts(item: NewManga, existing: list[dict[str, Any]], paths: set[str]) 
     sid = item.entry["id"]
     old = next((row for row in existing if row["id"] == sid), None)
     collision = [
-        row for row in existing
+        row
+        for row in existing
         if row["id"] != sid and normalized_title(row["title"]) == normalized_title(item.entry["title"])
     ]
     if collision:
@@ -196,16 +195,24 @@ def prepare_plan(
     rows = []
     for manga in bundles:
         status, reason = _conflicts(manga, old_entries, paths)
-        rows.append({
-            "id": manga.entry["id"], "title": manga.entry["title"],
-            "status": status, "reason": reason, "chapters": len(manga.entry["chapters"]),
-            "pages": sum(ch["pageCount"] for ch in manga.entry["chapters"]),
-            "fileCount": len(manga.files), "sourceFingerprint": _fingerprint(manga.files),
-            "sourceRightsSha256": _sha(manga.rights),
-        })
+        rows.append(
+            {
+                "id": manga.entry["id"],
+                "title": manga.entry["title"],
+                "status": status,
+                "reason": reason,
+                "chapters": len(manga.entry["chapters"]),
+                "pages": sum(ch["pageCount"] for ch in manga.entry["chapters"]),
+                "fileCount": len(manga.files),
+                "sourceFingerprint": _fingerprint(manga.files),
+                "sourceRightsSha256": _sha(manga.rights),
+            }
+        )
     plan = {
-        "schemaVersion": 1, "operation": "append-only-manga-bulk-upload",
-        "dataset": DATASET, "expectedRevision": sha,
+        "schemaVersion": 1,
+        "operation": "append-only-manga-bulk-upload",
+        "dataset": DATASET,
+        "expectedRevision": sha,
         "catalogueSha256": _sha(old_catalogue),
         "status": "conflict" if any(row["status"] == "conflict" for row in rows) else "ready",
         "items": rows,
@@ -224,9 +231,7 @@ def plan_upload(token: str, source: Path, output: Path) -> dict[str, Any]:
     return plan
 
 
-def upload(
-    token: str, source: Path, plan_file: Path, *, approve: bool
-) -> dict[str, object]:
+def upload(token: str, source: Path, plan_file: Path, *, approve: bool) -> dict[str, object]:
     if not approve:
         raise ControllerError("Explicit --approve is required to upload private manga")
     if plan_file.is_symlink() or not plan_file.is_file():
@@ -239,6 +244,7 @@ def upload(
     if plan["status"] != "ready":
         raise UploadConflict("Bulk upload has title, media or identity conflicts")
     from huggingface_hub import CommitOperationAdd
+
     head = sha
 
     def commit(operations: list[Any], message: str) -> None:
@@ -247,8 +253,13 @@ def upload(
         if current.private is not True or current.sha != head:
             raise UploadConflict("Private dataset revision moved during bulk upload")
         api.create_commit(
-            repo_id=DATASET, repo_type="dataset", revision="main", token=token,
-            parent_commit=head, operations=operations, commit_message=message,
+            repo_id=DATASET,
+            repo_type="dataset",
+            revision="main",
+            token=token,
+            parent_commit=head,
+            operations=operations,
+            commit_message=message,
             num_threads=4,
         )
         updated = api.dataset_info(DATASET, token=token)
@@ -275,8 +286,7 @@ def upload(
             if target_set & remote_files:
                 raise UploadConflict("Uncheckpointed media exists and may not be overwritten")
             operations = [
-                CommitOperationAdd(path_in_repo=rec.remote, path_or_fileobj=rec.local)
-                for rec in part
+                CommitOperationAdd(path_in_repo=rec.remote, path_or_fileobj=rec.local) for rec in part
             ]
             operations.append(CommitOperationAdd(path_in_repo=marker, path_or_fileobj=body))
             commit(operations, f"Append verified manga {sid} media batch {idx}")
@@ -286,21 +296,25 @@ def upload(
         # Do not publish until all immutable manga images and manifests are present.
         if not {rec.remote for rec in manga.files}.issubset(remote_files):
             raise UploadConflict("Manga source files incomplete before catalogue publication")
-        current_entries = [
-            *existing, manga.entry
-        ]
-        new_catalogue = _json_data(canonical_library(sorted(
-            current_entries, key=lambda item: item["title"].casefold()
-        )))
+        current_entries = [*existing, manga.entry]
+        new_catalogue = _json_data(
+            canonical_library(sorted(current_entries, key=lambda item: item["title"].casefold()))
+        )
         before_path = f"control/bulk-catalogue-backups/{head}/library.json"
         rights_path = f"control/bulk-rights/{sid}.json"
         finished_path = f"{BULK_ROOT}/{sid}/complete.json"
         if any(name in remote_files for name in (before_path, rights_path, finished_path)):
             raise UploadConflict("Bulk metadata backup, rights or completion path already exists")
-        completion = _json_data({
-            "schemaVersion": 1, "mangaId": sid, "sourceFingerprint": row["sourceFingerprint"],
-            "chapters": row["chapters"], "pages": row["pages"], "complete": True,
-        })
+        completion = _json_data(
+            {
+                "schemaVersion": 1,
+                "mangaId": sid,
+                "sourceFingerprint": row["sourceFingerprint"],
+                "chapters": row["chapters"],
+                "pages": row["pages"],
+                "complete": True,
+            }
+        )
         commit(
             [
                 CommitOperationAdd(path_in_repo=before_path, path_or_fileobj=catalogue),
@@ -319,10 +333,17 @@ def upload(
         raise UploadConflict("Private bulk-upload final catalogue/file verification failed")
     if not {b.entry["id"] for b in bundles}.issubset({e["id"] for e in final_entries}):
         raise UploadConflict("Private bulk upload failed to publish every approved manga")
-    return {"status": "complete", "uploaded": uploaded, "skippedExisting": skipped,
-            "revision": head, "manga": len(final_entries), "mediaDeleted": 0}
+    return {
+        "status": "complete",
+        "uploaded": uploaded,
+        "skippedExisting": skipped,
+        "revision": head,
+        "manga": len(final_entries),
+        "mediaDeleted": 0,
+    }
 
 
 def _read_marker(path: str, sha: str, token: str) -> bytes:
     from .hf_metadata import _read_file
+
     return _read_file(path, sha, token, 100_000)
