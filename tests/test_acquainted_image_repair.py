@@ -88,9 +88,7 @@ class DamagedMangaImageTests(unittest.TestCase):
         with self.assertRaises(ControllerError):
             inspect_and_prepare(self.pages, self.work)
         report = json.loads((self.work / "image-diagnostics.json").read_text())
-        self.assertIn("Pillow", report["issues"][0]["validationError"]) if "Pillow" in report["issues"][0]["validationError"] else self.assertIn(
-            "Invalid or corrupt image", report["issues"][0]["validationError"]
-        )
+        self.assertIn("Invalid or corrupt image", report["issues"][0]["validationError"])
 
 
 if __name__ == "__main__":
