@@ -1,0 +1,41 @@
+name: Verify and pin legacy ReLIFE private recovery snapshot
+
+on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/hf-legacy-recovery.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-manga-private-write
+  cancel-in-progress: false
+
+jobs:
+  pre-migration-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: hf-manga-upload
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install Controller and private dataset reader
+        run: |
+          python -m pip install --upgrade "setuptools>=84.1.0"
+          python -m pip install -e ".[huggingface]"
+      - name: Audit all ReLIFE legacy manifests and canonical target paths read-only
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python -m taiyou_manga.hf_layout
+      - name: Create and verify full private snapshot recovery branch
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python -m taiyou_manga.hf_recovery --create-recovery-ref
+
+# No changes to HF main, no public media artifacts, no file deletion or copies.
+# This pins the exact full private repository tree before any migration work.
+# An independent off-platform media backup is still required before a real migration.
