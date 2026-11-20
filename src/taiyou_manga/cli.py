@@ -99,6 +99,9 @@ def parser() -> argparse.ArgumentParser:
     stage.add_argument("--artifact-dir", required=True, type=_path)
     stage.add_argument("--output", required=True, type=_path)
     stage.add_argument("--state-file", required=True, type=_path)
+    stage.add_argument(
+        "--stable-ids", action="store_true", help="Use ReLIFE's deterministic backed-up identity contract"
+    )
     health = sub.add_parser(
         "hf-health", help="Optional read-only check of explicitly named private HF dataset"
     )
@@ -183,7 +186,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     if cmd == "relife-preflight":
         return audit_relife_artifacts(args.artifact_dir, deep_verify=not args.metadata_only)
     if cmd == "relife-stage":
-        return stage_relife_candidate(args.artifact_dir, args.output, args.state_file)
+        return stage_relife_candidate(
+            args.artifact_dir, args.output, args.state_file, stable_ids=args.stable_ids
+        )
     if cmd == "hf-health":
         return HuggingFaceReadOnly(args.repo_id).health()
     if cmd == "menu":
