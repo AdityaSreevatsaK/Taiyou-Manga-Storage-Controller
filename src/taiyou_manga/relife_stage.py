@@ -17,7 +17,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from .builder import build, verify_bundle
+from .builder import build, verify_bundle, write_json
 from .domain import ControllerError
 from .relife_intake import (
     ARTIFACT_RE,
@@ -28,6 +28,19 @@ from .relife_intake import (
 )
 
 MAX_CBZ_BYTES = 500_000_000
+
+
+def _stable_registry(numbers: set[str]) -> dict[str, str]:
+    """Versioned, reproducible opaque identities, never tied to temporary paths."""
+    result = {
+        "series:ReLIFE": "mng_" + hashlib.sha256(b"taiyou-manga/v1/relife/series").hexdigest()[:24]
+    }
+    for number in sorted(numbers, key=Decimal):
+        key = "chapter:ReLIFE/Chapter " + number + ".cbz"
+        result[key] = "ch_" + hashlib.sha256(
+            ("taiyou-manga/v1/relife/chapter/" + number).encode("ascii")
+        ).hexdigest()[:24]
+    return result
 
 
 def _chapter_label(chapter: str) -> str:
@@ -54,7 +67,7 @@ def _copy_verified_cbz(
 
 
 def stage_relife_candidate(
-    artifact_dir: Path, output: Path, registry_file: Path, *, require_complete: bool = True
+    artifact_dir: Path, output: Path, registry_file: Path, *, require_complete: bool = True, stable_ids: bool = False
 ) -> dict[str, Any]:
     """Build locally with new provisional opaque IDs; no public or cloud publication."""
     if output.exists() or output.is_symlink():
@@ -101,6 +114,8 @@ def stage_relife_candidate(
             raise ControllerError("Source chapter count changed after validation")
         if require_complete and seen != EXPECTED_CHAPTERS:
             raise ControllerError("Normalised ReLIFE source is incomplete")
+        if stable_ids:
+            write_json(registry_file, _stable_registry(seen))
         created = build(
             source_root,
             output,
@@ -125,7 +140,7 @@ def stage_relife_candidate(
             "pages": confirmed["pages"],
             "readingDirection": "vertical",
             "sourceRunVerified": True,
-            "persistentIdsAssigned": False,
+            "persistentIdsAssigned": stable_ids,
             "readyForUpload": False,
             "requiresRemoteRightsAndContractApproval": True,
         }
