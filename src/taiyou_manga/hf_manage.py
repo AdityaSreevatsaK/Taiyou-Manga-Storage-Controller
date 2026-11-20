@@ -314,8 +314,28 @@ def _download_file(name: str, sha: str, token: str) -> Path:
 def _series_archive(
     token: str, sha: str, files: set[str], item: dict[str, Any], output: Path, *, catalogue: bytes
 ) -> dict[str, object]:
-    if output.exists() or output.is_symlink():
-        return {"status": "skipped-existing", "id": item["id"], "path": str(output)}
+    if output.is_symlink():
+        raise ControllerError("Refusing a symlinked existing private download")
+    if output.exists():
+        if not output.is_file():
+            raise ControllerError("Existing manga download is not a regular ZIP")
+        try:
+            with zipfile.ZipFile(output) as existing:
+                info = existing.getinfo("backup-manifest.json")
+                if info.file_size > MAX_REPORT_BYTES:
+                    raise ControllerError("Existing manga ZIP manifest exceeds limit")
+                header = json.loads(existing.read(info))
+                if (
+                    header.get("revision") != sha
+                    or header.get("mangaId") != item["id"]
+                    or header.get("complete") is not True
+                    or not isinstance(header.get("files"), list)
+                    or existing.testzip() is not None
+                ):
+                    raise ControllerError("Existing manga ZIP is stale or corrupt; choose a new destination")
+        except (zipfile.BadZipFile, KeyError, ValueError, OSError) as exc:
+            raise ControllerError("Existing private download is not a valid manga ZIP") from exc
+        return {"status": "skipped-existing-verified", "id": item["id"], "path": str(output)}
     originals: dict[str, str] = {}
     for chapter in item["chapters"]:
         name = f"data/manifests/{chapter['id']}.json"
@@ -411,7 +431,7 @@ def download_all(token: str, directory: Path, *, manga_id: str | None = None) ->
         "status": "download-finished",
         "revision": sha,
         "downloaded": sum(item["status"] == "downloaded" for item in results),
-        "skipped": sum(item["status"] == "skipped-existing" for item in results),
+        "skipped": sum(item["status"] == "skipped-existing-verified" for item in results),
         "directory": str(directory),
         "series": len(results),
     }
