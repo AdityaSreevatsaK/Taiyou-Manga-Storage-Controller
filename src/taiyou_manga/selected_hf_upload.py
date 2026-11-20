@@ -280,7 +280,7 @@ def selected_apply(
         raise ControllerError("Protected Hugging Face upload must be explicitly approved")
     if os.getenv("TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED") != "yes":
         raise ControllerError(
-            "Live selected uploads blocked until independent full-media backup and private staging test are verified"
+            "Independent full-media backup and private staging verification are required before uploading"
         )
     from huggingface_hub import CommitOperationAdd
 
