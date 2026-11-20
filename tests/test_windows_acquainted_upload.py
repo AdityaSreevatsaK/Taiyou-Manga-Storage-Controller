@@ -39,6 +39,7 @@ class WindowsUploadScriptTests(unittest.TestCase):
             for page in range(10):
                 archive.write(image, f"nested/1_{page}.jpg")
             archive.write(image, "nested/2_0.jpg")
+        image.unlink()
         metadata = {
             "title": NAME,
             "aliases": ["Alternative title"],
