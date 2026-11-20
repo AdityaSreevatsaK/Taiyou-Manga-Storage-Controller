@@ -31,3 +31,6 @@ build/
 .env
 .env.*
 !.env.example
+
+# Never publish private cloud exports or original downloaded manga
+downloads/

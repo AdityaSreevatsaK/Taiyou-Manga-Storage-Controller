@@ -106,7 +106,8 @@ def parser() -> argparse.ArgumentParser:
         "hf-health", help="Optional read-only check of explicitly named private HF dataset"
     )
     health.add_argument("--repo-id", required=True)
-    sub.add_parser("menu", help="Interactive Windows-friendly menu")
+    sub.add_parser("menu", help="Novel-style private Hugging Face manga management menu")
+    sub.add_parser("offline-menu", help="Original local demonstration and offline tools")
     return p
 
 
@@ -192,8 +193,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     if cmd == "hf-health":
         return HuggingFaceReadOnly(args.repo_id).health()
     if cmd == "menu":
-        interactive_menu()
+        from .hf_cli import interactive_menu as private_menu
+
+        private_menu()
         return {"status": "menu closed"}
+    if cmd == "offline-menu":
+        interactive_menu()
+        return {"status": "offline menu closed"}
     raise ControllerError(f"Unknown command: {cmd}")
 
 

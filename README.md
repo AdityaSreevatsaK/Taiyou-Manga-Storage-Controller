@@ -4,6 +4,18 @@ Offline-first, **Windows-friendly** Python tools for inspecting authorised manga
 
 > **Privacy and rights:** This GitHub repository is public. Never commit manga images, private manifests, media backups, personal notes or credentials. Only import media you are authorised to store. The controller does not download or scrape manga. **General-purpose Hugging Face writes remain disabled. ReLIFE has a narrowly authorised, guarded private upload workflow.**
 
+## Novel-style Manga Controller tools
+
+For the Windows menu and private Hugging Face catalogue listing, bulk upload/download,
+conflicts, integrity checks, backups, cover audits, restore and guarded single-manga
+deletion, see [Manga / Novel Controller feature parity](docs/NOVEL_CONTROLLER_PARITY.md).
+The default `00_manga_storage_menu.cmd` now opens the private manga management menu;
+previous synthetic/offline demos remain at option 20.
+
+Install `py -3 -m pip install -e ".[huggingface]"` for cloud tools and set
+`HF_TOKEN` through your terminal environment. No private dataset writes occur by
+opening the menu. The whole-dataset wipe option remains disabled.
+
 ## Quick start on Windows (PowerShell)
 
 Install Python 3.11 or 3.12, then:
@@ -51,7 +63,7 @@ The synthetic generator creates **two original fictional series, four chapters a
 | Verified full-media backups, read-only restore preview, new-folder restoration | Implemented |
 | Read-only private HF dataset health | Optional; requires `pip install -e ".[huggingface]"` and an explicit repo ID |
 | Private ReLIFE HF upload | **Approved; revision-guarded workflow with resumable commits** |
-| Other HF uploads, private cloud reader, account creation, sync, destructive commands | **Disabled / not implemented** |
+| General HF manga bulk upload, catalogue/list/status, downloads, sync and safe de-list | **Implemented with preview, source rights and revision guards**; see [operations](docs/NOVEL_CONTROLLER_PARITY.md) |
 
 **CSV exports contain private series and chapter titles.** They use a new-file-only destination, spreadsheet formula escaping and a Git-ignore rule, but should never be committed or shared publicly. The Windows menu also offers CSV export.
 
