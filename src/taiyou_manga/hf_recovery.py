@@ -59,12 +59,8 @@ def create_recovery_ref(token: str, *, apply: bool) -> dict[str, object]:
         pinned = api.dataset_info(DATASET, token=token, revision=BACKUP_BRANCH)
         if pinned.private is not True or pinned.sha != expected:
             raise ControllerError("Private HF recovery branch failed pinned revision validation")
-        before = set(
-            api.list_repo_files(DATASET, repo_type="dataset", revision=expected, token=token)
-        )
-        after = set(
-            api.list_repo_files(DATASET, repo_type="dataset", revision=BACKUP_BRANCH, token=token)
-        )
+        before = set(api.list_repo_files(DATASET, repo_type="dataset", revision=expected, token=token))
+        after = set(api.list_repo_files(DATASET, repo_type="dataset", revision=BACKUP_BRANCH, token=token))
         if before != after:
             raise ControllerError("Recovery branch file inventory is not identical to original revision")
     return {

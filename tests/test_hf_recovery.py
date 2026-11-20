@@ -21,9 +21,7 @@ class FakeApi:
 
     def list_repo_refs(self, repo_id: str, **kw: object) -> types.SimpleNamespace:
         refs = (
-            [types.SimpleNamespace(name=BACKUP_BRANCH, target_commit=self.branch_sha)]
-            if self.branch
-            else []
+            [types.SimpleNamespace(name=BACKUP_BRANCH, target_commit=self.branch_sha)] if self.branch else []
         )
         return types.SimpleNamespace(branches=refs)
 
@@ -48,8 +46,11 @@ class RecoveryTests(unittest.TestCase):
         self.hub = types.ModuleType("huggingface_hub")
         self.hub.HfApi = lambda token: self.api  # type: ignore[attr-defined]
         self.plan = {
-            "series": 1, "chapters": 237, "pages": 5606,
-            "expectedRevision": self.api.sha, "filesToCopyWithoutDeletingLegacy": 5843,
+            "series": 1,
+            "chapters": 237,
+            "pages": 5606,
+            "expectedRevision": self.api.sha,
+            "filesToCopyWithoutDeletingLegacy": 5843,
         }
 
     def test_preview_does_not_create_branch(self) -> None:

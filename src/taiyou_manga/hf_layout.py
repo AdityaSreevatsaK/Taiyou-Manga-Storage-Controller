@@ -101,7 +101,8 @@ def canonical_library(entries: object) -> dict[str, Any]:
 
 
 def _migration_maps(
-    entries: list[dict[str, Any]], source_files: set[str],
+    entries: list[dict[str, Any]],
+    source_files: set[str],
     manifests: dict[str, Any],
 ) -> dict[str, str]:
     if not source_files or CANONICAL_CATALOGUE in source_files:
@@ -196,8 +197,11 @@ def read_legacy_preview(repo_id: str, token: str) -> dict[str, object]:
     if LEGACY_CATALOGUE not in files:
         raise ControllerError("Expected root legacy manga catalogue missing")
     raw_path = hf_hub_download(
-        repo_id=repo_id, repo_type="dataset", revision=revision,
-        filename=LEGACY_CATALOGUE, token=token,
+        repo_id=repo_id,
+        repo_type="dataset",
+        revision=revision,
+        filename=LEGACY_CATALOGUE,
+        token=token,
     )
     raw_bytes = Path(raw_path).read_bytes()
     if len(raw_bytes) > MAX_LIBRARY_BYTES:
@@ -211,8 +215,11 @@ def read_legacy_preview(repo_id: str, token: str) -> dict[str, object]:
             if name not in files:
                 raise ControllerError("Legacy HF chapter manifest is missing")
             path = hf_hub_download(
-                repo_id=repo_id, repo_type="dataset", revision=revision,
-                filename=name, token=token,
+                repo_id=repo_id,
+                repo_type="dataset",
+                revision=revision,
+                filename=name,
+                token=token,
             )
             bytes_manifest = Path(path).read_bytes()
             if len(bytes_manifest) > 1_000_000:
