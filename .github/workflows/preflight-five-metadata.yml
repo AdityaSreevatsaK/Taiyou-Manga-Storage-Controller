@@ -1,0 +1,46 @@
+name: Validate five user-uploaded cover and metadata records (no HF writes)
+on:
+  push:
+    branches: [feat/p0-five-manga-metadata-private-backfill-20261120]
+    paths: ['.github/workflows/preflight-five-metadata.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  validate-real-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install Controller and validation tools
+        run: |
+          python -m pip install --upgrade 'setuptools>=84.1.0'
+          python -m pip install -e '.[dev]'
+      - name: Strict Python formatting and lint preflight
+        run: |
+          python -m ruff check scripts/prepare_five_metadata_handover.py
+          python -m ruff format --check scripts/prepare_five_metadata_handover.py
+      - name: Retrieve original short-lived public source artifacts privately
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 "${RUNNER_TEMP}/metadata-transfer"
+          gh api repos/RichardDaffern/Manga-Retriever/actions/artifacts/14614808103/zip > "${RUNNER_TEMP}/metadata-transfer/covers.zip"
+          gh api repos/RichardDaffern/Manga-Retriever/actions/artifacts/14614456172/zip > "${RUNNER_TEMP}/metadata-transfer/metadata.zip"
+      - name: Verify exact user-ZIP checksums, five cover bytes and source UUIDs
+        shell: bash
+        run: |
+          python -m scripts.prepare_five_metadata_handover \
+            --cover-artifact "${RUNNER_TEMP}/metadata-transfer/covers.zip" \
+            --metadata-artifact "${RUNNER_TEMP}/metadata-transfer/metadata.zip" \
+            --output "${RUNNER_TEMP}/metadata-transfer/private-candidates"
+      - name: Erase original cover bytes and metadata candidates
+        if: always()
+        shell: bash
+        run: rm -rf -- "${RUNNER_TEMP}/metadata-transfer"
+# Source metadata and images never leave the private runner. No public artifacts.
