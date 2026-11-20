@@ -329,6 +329,11 @@ def main() -> int:
     parser.add_argument("--cover", help="Separate owner-supplied cover JPG/PNG/WebP/AVIF")
     parser.add_argument("--rights-json", help="Existing truthful v1 source-rights JSON (optional)")
     parser.add_argument(
+        "--use-reviewed-repairs",
+        action="store_true",
+        help="Use explicitly inspected, visually approved local JPEG repair copies",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true", help="Build locally and preview, but do not write HF"
     )
     args = parser.parse_args()
@@ -346,6 +351,11 @@ def main() -> int:
     work.mkdir(parents=True, exist_ok=True)
     pages = work / "pages"
     total_pages = extract_pages(images_zip, pages)
+    from scripts.acquainted_image_repair import inspect_and_prepare
+
+    selected_pages = inspect_and_prepare(
+        pages, work, use_reviewed_repairs=args.use_reviewed_repairs
+    )
     rights = source_rights(work, NAME, args.rights_json)
 
     from taiyou_manga.builder import build, load_json, verify_bundle
@@ -359,7 +369,7 @@ def main() -> int:
 
     if BULK_DATASET != DATASET:
         fail("Controller HF dataset target differs from the intended private repository")
-    summary = flat_preview(pages, NAME)
+    summary = flat_preview(selected_pages, NAME)
     if summary["pages"] != total_pages:
         fail("Flat preview page count differs from extracted images")
     print(f"Chapters detected: {summary['chapters']}; pages: {summary['pages']}")
@@ -369,7 +379,7 @@ def main() -> int:
         checked = verify_bundle(bundle)
     else:
         checked = build(
-            pages,
+            selected_pages,
             bundle,
             work / "ids.json",
             NAME,
