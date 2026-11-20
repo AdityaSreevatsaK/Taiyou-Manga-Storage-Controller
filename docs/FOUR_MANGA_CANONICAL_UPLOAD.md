@@ -23,3 +23,9 @@ canonical catalogue, never overwrite unrelated titles.
 backup and private staging migration test are verified, including page
 delivery through the reader. The pinned Hugging Face recovery branch is
 not an independent backup. The source verification job does not use HF_TOKEN.
+
+The production uploader is deliberately gated by
+`TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED=yes`, which must only be
+provided after the independent backup and isolated staging verification.
+Until then, the read-only source-integrity workflow must remain the only
+routine run for these four titles.
