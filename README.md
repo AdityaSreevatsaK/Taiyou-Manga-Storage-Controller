@@ -2,7 +2,7 @@
 
 Offline-first, **Windows-friendly** Python tools for inspecting authorised manga images, generating private candidate manifests, verifying local media, previewing uploads against a mock and creating recoverable backups. **No real manga source files, Hugging Face dataset or final storage layout are required.**
 
-> **Privacy and rights:** This GitHub repository is public. Never commit manga images, private manifests, media backups, personal notes or credentials. Only import media you are authorised to store. The controller does not download or scrape manga. **General-purpose Hugging Face writes remain disabled. ReLIFE has a narrowly authorised, guarded private upload workflow.**
+> **Privacy and rights:** This GitHub repository is public. Never commit manga images, private manifests, media backups, personal notes or credentials. Only import media you are authorised to store. The controller does not download or scrape manga. **Private Hugging Face operations require validated sources, revision-guarded previews and explicit owner approval. Full dataset deletion is disabled.**
 
 ## Novel-style Manga Controller tools
 
@@ -85,10 +85,10 @@ Software is MIT-licensed; **this licence does not grant any rights to third-part
 \nIdentity registry recovery after renaming manga folders: [safe migration guide](docs/IDENTITY_MIGRATION.md). By default migration only previews mappings; applying requires an exact registry revision, a new private backup path and `--approve`.\n
 ReLIFE Actions source media can be **audited without upload** using the protected local CLI `relife-preflight` or the isolated [ReLIFE source preflight workflow](docs/RELIFE_SOURCE_PREFLIGHT.md). It does not use Hugging Face write credentials.
 
-The specific approved **ReLIFE private Hugging Face upload** runs through [its protected GitHub Actions workflow](.github/workflows/relife-private-hf-upload.yml) and its [storage contract](docs/HUGGING_FACE_INTEGRATION.md). It uploads neither personal progress nor public media artefacts. Its completeness must be confirmed in Actions; adding a workflow is not itself proof that the remote upload succeeded.
+The historical ReLIFE source and migration workflows are documented in [Hugging Face integration](docs/HUGGING_FACE_INTEGRATION.md). Future general-purpose imports run locally through the [bulk upload and management commands](docs/NOVEL_CONTROLLER_PARITY.md). No workflow or CLI uploads public media artefacts; every remote mutation requires its own verified approval and post-commit checks.
 
-## Canonical private HF layout and current migration hold
+## Canonical private Hugging Face layout (migration complete)
 
-**Canonical:** `data/library.json` containing `{"schemaVersion":1,"mediaKind":"manga","entries":[...]}`. Chapters and pages belong under `data/manifests/` and `data/manga/`. The legacy ReLIFE data remains intact under root `catalogue.json`, `manifests/` and `assets/manga/` until recovery-backed migration. See [canonical data contract](docs/DATA_CONTRACTS.md).
+**Canonical:** `data/library.json` containing `{"schemaVersion":1,"mediaKind":"manga","entries":[...]}`. Chapters and pages belong under `data/manifests/` and `data/manga/`. The legacy ReLIFE files remain intact under root `catalogue.json`, `manifests/` and `assets/manga/` as preserved recovery originals; the app reads the canonical `data/` structure. See [canonical data contract](docs/DATA_CONTRACTS.md).
 
-The prior ReLIFE upload was successful but used the wrong remote layout. Its old workflow is now retired. All further manga uploads, including Maid-sama!, Last Game, Love So Life and Onizuka, are paused until a full off-platform backup and isolated private staging migration have passed. The proposed four-title legacy-format PR #20 was closed without merging.
+ReLIFE was migrated to the canonical layout, followed by the verified uploads of Maid-sama!, Last Game, Love So Life and Onizuka-chan and Sawarida-kun. All five publication records and original cover images were subsequently enriched in private Hugging Face. Future verified manga can be imported through the new [Novel-style Manga Controller menu](docs/NOVEL_CONTROLLER_PARITY.md) with explicit approval. Original IDs and image bytes remain unchanged. The previous incompatible legacy-format PR #20 was closed without merging.
