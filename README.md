@@ -62,6 +62,19 @@ You can also open **00_manga_storage_menu.cmd** once the package is installed. T
 
 Set an appropriately scoped private HF_TOKEN environment variable in your current terminal before cloud operations. Do **not** hardcode it or add it to tracked files.
 
+## Flat numbered JPG/PNG manga importer
+
+If a manga arrives as a **single folder** of images named `1_0.jpg`, `1_1.jpg`,
+`1_10.jpg`, `2_0.jpg`, etc., the Controller can group the chapters
+numerically, verify every image and prepare the **same canonical manga
+catalogue and page manifests** already consumed by the Manga Library.
+
+Use **Windows menu option 21** for a guided preview, bundle build and optional
+approved Hugging Face upload, or follow
+[Flat manga import instructions](docs/IMPORT_FORMATS.md#flat-numbered-chapter_page-image-import).
+For the Manga Library agent, use the
+[exact integration note](docs/LIBRARY_FLAT_CHAPTER_IMPORT_CONTRACT.md).
+
 ## Basic commands
 
 Use **python -m taiyou_manga.hf_cli** for private HF catalogue management:
