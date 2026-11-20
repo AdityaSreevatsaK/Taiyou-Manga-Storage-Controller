@@ -129,7 +129,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             [
                 {
                     "normalisedTitle": row["normalisedTitle"],
-                    "mangaIds": ", ".join(row["mangaIds"]),
+                    "mangaIds": ", ".join(str(m) for m in row["mangaIds"]),
                     "count": row["count"],
                 }
                 for row in rows
