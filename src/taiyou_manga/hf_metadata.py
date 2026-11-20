@@ -81,13 +81,46 @@ def _planned(
     raw: bytes,
     entries: list[dict[str, Any]],
     candidates_file: Path,
-) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Path]]:
+) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Path], dict[str, bytes]]:
     candidates, candidate_digest = load_candidates(candidates_file)
     result, uploads, changes, conflicts = reconcile(
         entries, candidates, candidates_file.parent, paths
     )
     dest = canonical_library(result)
     upload_details: list[dict[str, object]] = []
+    rights_records: dict[str, bytes] = {}
+    for candidate in candidates:
+        manga_id = candidate.get("mangaId")
+        cover = candidate["metadata"].get("cover")
+        if not manga_id or not cover:
+            continue
+        asset = next(
+            (
+                (path, item)
+                for path, item in uploads.items()
+                if path.startswith(f"data/covers/{manga_id}.")
+            ),
+            None,
+        )
+        if asset is None:
+            continue
+        descriptor = next(
+            entry["cover"] for entry in result if entry["id"] == manga_id
+        )
+        record = {
+            "schemaVersion": 1,
+            "mangaId": manga_id,
+            "coverSha256": descriptor["sha256"],
+            "source": candidate["source"],
+            "rightsEvidence": cover["rightsEvidence"],
+            "attribution": cover["attribution"],
+        }
+        rights_path = (
+            f"control/cover-rights/{manga_id}/{descriptor['sha256']}.json"
+        )
+        if rights_path in rights_records or rights_path in paths:
+            conflicts.append(f"{manga_id}: cover rights record already exists")
+        rights_records[rights_path] = encoded(record)
     for name, local in sorted(uploads.items()):
         if name in paths:
             conflicts.append(f"Private cover path already exists: {name}")
@@ -126,17 +159,21 @@ def _planned(
         "changes": changes,
         "conflicts": conflicts,
         "coverUploads": upload_details,
+        "coverRights": [
+            {"path": path, "sha256": _sha(contents)}
+            for path, contents in sorted(rights_records.items())
+        ],
         "before": completeness(entries),
         "after": completeness(result),
         "deleteOperations": 0,
         "chapterOrPageWrites": 0,
     }
-    return plan, result, uploads
+    return plan, result, uploads, rights_records
 
 
 def preview(api: Any, token: str, candidates_file: Path) -> dict[str, Any]:
     revision, paths, contents, entries = _snapshot(api, token)
-    plan, _, _ = _planned(revision, paths, contents, entries, candidates_file)
+    plan, _, _, _ = _planned(revision, paths, contents, entries, candidates_file)
     return plan
 
 
@@ -158,7 +195,9 @@ def apply(
         raise ControllerError("Metadata approval preview exceeds size limit")
     approved = json.loads(approval_bytes)
     sha, paths, old_bytes, entries = _snapshot(api, token)
-    plan, merged, covers = _planned(sha, paths, old_bytes, entries, candidates_file)
+    plan, merged, covers, rights_records = _planned(
+        sha, paths, old_bytes, entries, candidates_file
+    )
     if plan != approved:
         raise UploadConflict("Dataset, candidates, or preview changed; approval is stale")
     if plan["status"] == "conflict":
@@ -180,6 +219,10 @@ def apply(
             raise UploadConflict("Cover artwork changed since preview")
         operations.append(CommitOperationAdd(path_in_repo=path, path_or_fileobj=image))
 
+    operations.extend(
+        CommitOperationAdd(path_in_repo=name, path_or_fileobj=body)
+        for name, body in sorted(rights_records.items())
+    )
     operations.extend(
         [
             CommitOperationAdd(path_in_repo=str(plan["backupPath"]), path_or_fileobj=old_bytes),
@@ -207,6 +250,12 @@ def apply(
         raise UploadConflict("Post-write verification failed for the canonical metadata catalogue")
     if _read_file(str(plan["backupPath"]), new_sha, token, MAX_LIBRARY_BYTES) != old_bytes:
         raise UploadConflict("Original catalogue backup is not byte identical")
+    for row in plan["coverRights"]:
+        path = str(row["path"])
+        if path not in new_files:
+            raise UploadConflict("Private cover rights record is missing after commit")
+        if _sha(_read_file(path, new_sha, token, MAX_LIBRARY_BYTES)) != row["sha256"]:
+            raise UploadConflict("Cover provenance record changed during metadata commit")
     for row in plan["coverUploads"]:
         path = str(row["path"])
         if path not in new_files:
@@ -219,6 +268,7 @@ def apply(
         "revision": new_sha,
         "changes": len(plan["changes"]),
         "coversAdded": len(plan["coverUploads"]),
+        "coverRightsStored": len(plan["coverRights"]),
         "catalogueBackup": plan["backupPath"],
         "series": len(merged),
     }
