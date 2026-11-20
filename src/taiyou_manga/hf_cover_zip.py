@@ -67,6 +67,8 @@ def unpack_verified(zip_path: Path, destination: Path) -> Path:
         present = set(names) & {"candidates.json", "metadata.json"}
         if len(present) != 1:
             raise ControllerError("Exactly one metadata.json or candidates.json must be supplied")
+        if not any(name.startswith("covers/") for name in names):
+            raise ControllerError("Cover ZIP must contain at least one real cover image")
         for member in records:
             mode = member.external_attr >> 16
             maximum = MAX_CANDIDATE if member.filename in present else MAX_COVER
