@@ -194,6 +194,8 @@ def stage_selected_manga(slug: str, artifact_dir: Path, output: Path, registry: 
                         raise ControllerError("Selected manga total archive count mismatch")
                     if set(members) != allowed:
                         raise ControllerError("Unexpected non-chapter selected manga source files")
+            except ControllerError:
+                raise
             except (OSError, ValueError, zipfile.BadZipFile, RuntimeError, EOFError) as exc:
                 raise ControllerError(
                     "Selected manga source audit could not be independently verified"
