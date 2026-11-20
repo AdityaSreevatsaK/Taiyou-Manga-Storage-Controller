@@ -1,0 +1,38 @@
+name: Check ephemeral Retriever artefact access for five-cover migration
+on:
+  push:
+    branches: [feat/p0-five-manga-metadata-private-backfill-20261120]
+    paths: ['.github/workflows/check-retriever-artifacts.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  check-public-retriever-artefacts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check cross-repository artefact access (never publish contents)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/retriever"
+          for pair in "cover:14614808103" "metadata:14614456172"; do
+            kind="${pair%%:*}"
+            artifact="${pair#*:}"
+            if gh api "repos/RichardDaffern/Manga-Retriever/actions/artifacts/${artifact}/zip" > "${RUNNER_TEMP}/retriever/${kind}.zip" 2> "${RUNNER_TEMP}/retriever/${kind}.err"; then
+              python - "${RUNNER_TEMP}/retriever/${kind}.zip" <<'PY'
+          import sys,zipfile
+          p=sys.argv[1]
+          with zipfile.ZipFile(p) as z:
+              names=[x for x in z.namelist() if not x.endswith('/')]
+          print("Private-runner source artefact reachable, files:",len(names))
+          PY
+            else
+              echo "::warning::Cross-repo artefact download refused for ${kind}"
+              sed -E 's/(token|secret|authorization)[^ ]*/[redacted]/gi' "${RUNNER_TEMP}/retriever/${kind}.err" | head -n 3
+            fi
+          done
+          rm -rf -- "${RUNNER_TEMP}/retriever"
