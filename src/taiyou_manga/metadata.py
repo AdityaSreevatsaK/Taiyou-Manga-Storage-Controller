@@ -187,7 +187,9 @@ def cover_asset_path(cover: object, manga_id: str) -> str:
     }:
         raise ControllerError("Malformed canonical manga cover descriptor")
     asset = cover.get("assetPath")
-    match = COVER_ASSET.fullmatch(asset) if isinstance(asset, str) else None
+    if not isinstance(asset, str):
+        raise ControllerError("Unsafe canonical manga cover path")
+    match = COVER_ASSET.fullmatch(asset)
     if match is None:
         raise ControllerError("Unsafe canonical manga cover path")
     if match.group(1) != manga_id:
