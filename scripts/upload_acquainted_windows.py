@@ -351,7 +351,10 @@ def main() -> int:
     work.mkdir(parents=True, exist_ok=True)
     pages = work / "pages"
     total_pages = extract_pages(images_zip, pages)
-    from scripts.acquainted_image_repair import inspect_and_prepare
+    if __package__:
+        from .acquainted_image_repair import inspect_and_prepare
+    else:
+        from acquainted_image_repair import inspect_and_prepare
 
     selected_pages = inspect_and_prepare(
         pages, work, use_reviewed_repairs=args.use_reviewed_repairs
