@@ -128,7 +128,7 @@ def local_download_cleanup(
     summary: dict[str, object] = {
         "status": "preview" if not apply else "local-temp-cleaned",
         "temporaryFiles": len(candidates),
-        "bytes": sum(int(r["size"]) for r in files),
+        "bytes": sum(file.stat().st_size for file in candidates),
         "remoteFilesDeleted": 0,
         "mangaArchivesDeleted": 0,
         "files": files,
