@@ -104,9 +104,7 @@ class ReLIFEStagingTests(unittest.TestCase):
         first = load_json(self.registry)
         catalogue = load_json(self.bundle / "catalogue.json")
         self.assertEqual(first["series:ReLIFE"], catalogue[0]["id"])
-        self.assertEqual(
-            first["chapter:ReLIFE/Chapter 19.5.cbz"], catalogue[0]["chapters"][1]["id"]
-        )
+        self.assertEqual(first["chapter:ReLIFE/Chapter 19.5.cbz"], catalogue[0]["chapters"][1]["id"])
 
     def test_preexisting_bundle_or_registry_refused_without_changes(self) -> None:
         self.source()
