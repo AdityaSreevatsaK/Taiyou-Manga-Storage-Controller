@@ -1,0 +1,112 @@
+name: Upload four manga to canonical private HF (backup-gated)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: hf-manga-private-write
+  cancel-in-progress: false
+
+jobs:
+  upload-four-titles:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: hf-manga-upload
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        slug: [maid-sama, last-game, love-so-life, onizuka-sawarida]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Enforce independently verified backup and disposable staging
+        env:
+          TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED: ${{ vars.TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED }}
+        shell: bash
+        run: |
+          if [ "${TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED}" != "yes" ]; then
+            echo "::error::Full-media independent backup and private staging test are not verified."
+            exit 1
+          fi
+      - name: Install Controller and authenticated HF reader
+        run: |
+          python -m pip install --upgrade "setuptools>=84.1.0"
+          python -m pip install -e ".[huggingface]"
+      - name: Read canonical private ReLIFE catalogue (no writes)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_DISABLE_TELEMETRY: '1'
+        run: |
+          python - <<'PY'
+          import os
+          from taiyou_manga.hf_upload import _hf_api
+          from taiyou_manga.selected_hf_upload import _repo_state, _old_catalogue
+          token = os.environ["HF_TOKEN"]
+          api = _hf_api(token)
+          revision, paths = _repo_state(api, token)
+          entries, _ = _old_catalogue(revision, paths, token)
+          assert any(e.get("title") == "ReLIFE" for e in entries)
+          print("Canonical private ReLIFE catalogue validated; revision pinned")
+          PY
+      - name: Download only exact verified original-quality source batches
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TITLE_SLUG: ${{ matrix.slug }}
+        run: |
+          python -m scripts.fetch_selected_manga_artifacts \
+            --slug "${TITLE_SLUG}" \
+            --output "${RUNNER_TEMP}/selected-source-zips"
+      - name: Validate source pages, extras and deterministic identities
+        env:
+          TITLE_SLUG: ${{ matrix.slug }}
+        run: |
+          python -m taiyou_manga.selected_stage \
+            --slug "${TITLE_SLUG}" \
+            --artifact-dir "${RUNNER_TEMP}/selected-source-zips" \
+            --output "${RUNNER_TEMP}/selected-candidate" \
+            --registry "${RUNNER_TEMP}/selected-ids.json"
+          python -m taiyou_manga verify --bundle "${RUNNER_TEMP}/selected-candidate"
+      - name: Preview canonical private catalogue merge without HF writes
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_DISABLE_TELEMETRY: '1'
+          TITLE_SLUG: ${{ matrix.slug }}
+        run: |
+          python -m taiyou_manga.selected_hf_upload \
+            --slug "${TITLE_SLUG}" \
+            --bundle "${RUNNER_TEMP}/selected-candidate" \
+            --registry "${RUNNER_TEMP}/selected-ids.json" \
+            --plan-file "${RUNNER_TEMP}/selected-preview.json"
+      - name: Publish revision-guarded original media then canonical catalogue last
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_DISABLE_TELEMETRY: '1'
+          TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED: ${{ vars.TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED }}
+          TITLE_SLUG: ${{ matrix.slug }}
+        run: |
+          python -m taiyou_manga.selected_hf_upload \
+            --slug "${TITLE_SLUG}" \
+            --bundle "${RUNNER_TEMP}/selected-candidate" \
+            --registry "${RUNNER_TEMP}/selected-ids.json" \
+            --plan-file "${RUNNER_TEMP}/selected-preview.json" \
+            --apply --approve
+      - name: Erase runner-only manga sources, images and private identities
+        if: always()
+        run: |
+          rm -rf -- "${RUNNER_TEMP}/selected-source-zips" \
+            "${RUNNER_TEMP}/selected-candidate" \
+            "${RUNNER_TEMP}/selected-ids.json" \
+            "${RUNNER_TEMP}/selected-ids.json.lock" \
+            "${RUNNER_TEMP}/selected-preview.json"
+
+# No public manga artefacts. No deletions or legacy catalogue writes.
+# Protected workflow refuses uploads until independently verified backup,
+# canonical ReLIFE migration and isolated staging test are complete.
