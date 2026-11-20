@@ -57,34 +57,39 @@ class WindowsUploadScriptTests(unittest.TestCase):
             "publicationCredits": "Perilla and PAMBA",
         }
         candidates = {
-            "candidates": [{
-                "title": NAME,
-                "source": {
-                    "provider": "tapas",
-                    "sourceId": "acquainted-encounter-spin-off",
-                    "sourceUrl": metadata["references"]["officialEnglishPublisher"],
-                    "retrievedAt": "2026-11-20T17:00:00Z",
-                },
-                "metadata": {
-                    "synopsis": metadata["synopsis"],
-                    "publicationStatus": "completed",
-                    "tags": ["Romance", "Webtoon"],
-                },
-            }],
+            "candidates": [
+                {
+                    "title": NAME,
+                    "source": {
+                        "provider": "tapas",
+                        "sourceId": "acquainted-encounter-spin-off",
+                        "sourceUrl": metadata["references"]["officialEnglishPublisher"],
+                        "retrievedAt": "2026-11-20T17:00:00Z",
+                    },
+                    "metadata": {
+                        "synopsis": metadata["synopsis"],
+                        "publicationStatus": "completed",
+                        "tags": ["Romance", "Webtoon"],
+                    },
+                }
+            ],
         }
         with zipfile.ZipFile(self.meta_zip, "w") as archive:
             archive.writestr("metadata/metaddata.json", json.dumps(metadata))
             archive.writestr("metadata/candidates.json", json.dumps(candidates))
         self.rights = self.root / "original-rights.json"
         self.rights.write_text(
-            json.dumps({
-                "schemaVersion": 1,
-                "sourceType": "original",
-                "title": NAME,
-                "permissionEvidence": "Test authors created and own these synthetic image fixtures",
-                "attribution": "Synthetic fixture creator",
-                "recordedAt": "2026-11-20T00:00:00Z",
-            }), encoding="utf-8",
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "sourceType": "original",
+                    "title": NAME,
+                    "permissionEvidence": "Test authors created and own these synthetic image fixtures",
+                    "attribution": "Synthetic fixture creator",
+                    "recordedAt": "2026-11-20T00:00:00Z",
+                }
+            ),
+            encoding="utf-8",
         )
 
     def test_identifies_exact_archives_cover_and_canonical_metadata(self) -> None:
@@ -101,9 +106,15 @@ class WindowsUploadScriptTests(unittest.TestCase):
         rights = source_rights(work, NAME, str(self.rights))
         bundle = work / "bundle"
         summary = build(
-            extracted, bundle, work / "ids.json", NAME, "vertical",
-            rights, allow_duplicate_pages=True,
-            flat_numbered=True, manga_key="acquainted-encounter-spin-off",
+            extracted,
+            bundle,
+            work / "ids.json",
+            NAME,
+            "vertical",
+            rights,
+            allow_duplicate_pages=True,
+            flat_numbered=True,
+            manga_key="acquainted-encounter-spin-off",
         )
         self.assertEqual(summary["chapters"], 2)
         self.assertEqual(summary["pages"], 12)

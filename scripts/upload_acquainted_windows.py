@@ -24,7 +24,7 @@ import stat
 import sys
 import uuid
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -144,8 +144,10 @@ def find_cover(root: Path, explicit: str | None, images: Path, metadata: Path) -
             fail("Specified cover path is missing or not a supported image")
         return cover
     options = [
-        file for file in root.iterdir()
-        if file.is_file() and not file.is_symlink()
+        file
+        for file in root.iterdir()
+        if file.is_file()
+        and not file.is_symlink()
         and file.suffix.lower() in IMAGE_SUFFIXES
         and file not in (images, metadata)
         and PAGE_NAME.fullmatch(file.name) is None
@@ -169,7 +171,11 @@ def extract_pages(archive_path: Path, output: Path) -> int:
             matched = PAGE_NAME.fullmatch(name)
             if not matched:
                 if Path(name).suffix.lower() in IMAGE_SUFFIXES and name.lower() not in {
-                    "cover.jpg", "cover.jpeg", "cover.png", "cover.webp", "cover.avif"
+                    "cover.jpg",
+                    "cover.jpeg",
+                    "cover.png",
+                    "cover.webp",
+                    "cover.avif",
                 }:
                     fail(f"Unrecognised page image, refusing to skip: {name}")
                 continue
@@ -238,7 +244,7 @@ def source_rights(work: Path, title: str, supplied: str | None) -> Path:
         "title": title,
         "permissionEvidence": evidence,
         "attribution": "Perilla (Deulkkae), PAMBA / original rights holders",
-        "recordedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "recordedAt": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
@@ -274,9 +280,7 @@ def metadata_candidate(
     }
     source_fields = supplied.get("metadata", {})
     aliases = source_fields.get("aliases", meta.get("aliases", []))
-    tags = source_fields.get("tags") or [
-        *meta.get("genreTags", []), *meta.get("descriptiveTags", [])
-    ]
+    tags = source_fields.get("tags") or [*meta.get("genreTags", []), *meta.get("descriptiveTags", [])]
     creators = meta.get("creators") or [r["name"] for r in meta["creatorRoles"]]
     fields = {
         "aliases": aliases,
@@ -297,9 +301,7 @@ def metadata_candidate(
     payload = {
         "schemaVersion": 1,
         "mediaKind": "manga-metadata-candidates",
-        "candidates": [
-            {"mangaId": manga_id, "title": meta["title"], "source": source, "metadata": fields}
-        ],
+        "candidates": [{"mangaId": manga_id, "title": meta["title"], "source": source, "metadata": fields}],
     }
     destination = meta_root / "candidates.json"
     destination.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -326,7 +328,9 @@ def main() -> int:
     parser.add_argument("--metadata-zip", help="Explicit metadata ZIP (only if auto-discovery ambiguous)")
     parser.add_argument("--cover", help="Separate owner-supplied cover JPG/PNG/WebP/AVIF")
     parser.add_argument("--rights-json", help="Existing truthful v1 source-rights JSON (optional)")
-    parser.add_argument("--dry-run", action="store_true", help="Build locally and preview, but do not write HF")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Build locally and preview, but do not write HF"
+    )
     args = parser.parse_args()
 
     root = args.folder.resolve()
@@ -365,9 +369,15 @@ def main() -> int:
         checked = verify_bundle(bundle)
     else:
         checked = build(
-            pages, bundle, work / "ids.json", NAME,
-            "vertical", rights, allow_duplicate_pages=True,
-            flat_numbered=True, manga_key=SOURCE_KEY,
+            pages,
+            bundle,
+            work / "ids.json",
+            NAME,
+            "vertical",
+            rights,
+            allow_duplicate_pages=True,
+            flat_numbered=True,
+            manga_key=SOURCE_KEY,
         )
     if checked["pages"] != total_pages or checked["chapters"] != summary["chapters"]:
         fail("Local canonical bundle failed chapter/page count verification")
@@ -402,8 +412,10 @@ def main() -> int:
         fail(f"Upload preview requires review: {proposed['items']}")
     if proposed.get("new", 0) > 1:
         fail("This script may upload only one newly published manga")
-    print(f"Verified chapter-upload preview: {proposed['new']} new, "
-          f"{proposed['unchanged']} unchanged; no existing files overwritten.")
+    print(
+        f"Verified chapter-upload preview: {proposed['new']} new, "
+        f"{proposed['unchanged']} unchanged; no existing files overwritten."
+    )
     result = upload(token, bundle, upload_plan, approve=True)
     print(f"Chapter upload: {result['status']}; dataset revision: {result['revision']}")
 
@@ -416,8 +428,9 @@ def main() -> int:
         fail(f"Chapter upload completed, but metadata has review conflicts: {meta_preview['conflicts']}")
     if meta_preview["status"] == "ready":
         meta_result = apply_metadata(api, token, candidate_file, metadata_plan, approve=True)
-        print(f"Metadata and private cover: {meta_result['status']}, "
-              f"covers added: {meta_result['coversAdded']}")
+        print(
+            f"Metadata and private cover: {meta_result['status']}, covers added: {meta_result['coversAdded']}"
+        )
     else:
         print("Metadata already present; nothing to overwrite.")
 
@@ -436,17 +449,22 @@ def main() -> int:
         fail("Post-write verification failed: pre-existing manga disappeared")
     if any(next(e for e in entries if e["id"] == sid) != old for sid, old in known.items()):
         fail("Post-write verification failed: a pre-existing manga changed")
-    print(json.dumps({
-        "status": "verified",
-        "dataset": DATASET,
-        "revision": final_sha,
-        "mangaId": manga_id,
-        "chapters": len(final["chapters"]),
-        "pages": sum(ch["pageCount"] for ch in final["chapters"]),
-        "cover": "verified-private",
-        "existingMangaPreserved": len(known),
-        "privateWorkDirectory": str(work),
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "status": "verified",
+                "dataset": DATASET,
+                "revision": final_sha,
+                "mangaId": manga_id,
+                "chapters": len(final["chapters"]),
+                "pages": sum(ch["pageCount"] for ch in final["chapters"]),
+                "cover": "verified-private",
+                "existingMangaPreserved": len(known),
+                "privateWorkDirectory": str(work),
+            },
+            indent=2,
+        )
+    )
     print("SUCCESS: Canonical manga images, publication metadata and cover uploaded.")
     return 0
 
