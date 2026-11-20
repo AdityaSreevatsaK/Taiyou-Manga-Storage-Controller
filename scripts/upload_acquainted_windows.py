@@ -4,7 +4,7 @@ Input: a folder containing the chapter-page ZIP, a metadata ZIP containing
 metadata.json/metaddata.json and candidates.json, and a separate original
 cover JPG/PNG/WebP/AVIF image. Requires an authorised source-rights declaration.
 
-Run: py -3.11 scripts\upload_acquainted_windows.py --folder "D:\Manga\Acquainted"
+Run: py -3.11 scripts/upload_acquainted_windows.py --folder D:/Manga/Acquainted
 
 This uses the existing verified flat builder, private HF append-only uploader
 and revision-guarded metadata/cover reconciliation. No alternate schema, no
