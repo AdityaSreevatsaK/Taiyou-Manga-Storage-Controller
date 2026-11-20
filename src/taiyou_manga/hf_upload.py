@@ -15,6 +15,8 @@ from typing import Any
 
 from .builder import load_json, verify_bundle
 from .domain import ControllerError
+from .relife_intake import EXPECTED_CHAPTERS as EXPECTED_CHAPTER_NUMBERS
+from .relife_stage import _stable_registry
 
 DATASET = "AdityaSreevatsaK/Taiyous-Manga"
 SOURCE_RUN = 44547390262
@@ -66,9 +68,11 @@ def _candidate(bundle: Path, registry: Path) -> tuple[list[UploadFile], list[Upl
         raise ControllerError("Only the approved single-series ReLIFE catalogue may be uploaded")
     if entries[0]["direction"] != "vertical":
         raise ControllerError("ReLIFE reading direction has changed")
+    if registry.is_symlink() or not registry.is_file():
+        raise ControllerError("Private ReLIFE identity registry is missing or unsafe")
     identities = load_json(registry)
-    if not isinstance(identities, dict) or len(identities) != EXPECTED_CHAPTERS + 1:
-        raise ControllerError("Complete persistent ReLIFE identity mapping required")
+    if identities != _stable_registry(set(EXPECTED_CHAPTER_NUMBERS)):
+        raise ControllerError("ReLIFE persistent IDs must match the deterministic v1 mapping")
     if identities.get("series:ReLIFE") != entries[0]["id"]:
         raise ControllerError("Persistent ReLIFE series identity mismatch")
     for chapter in entries[0]["chapters"]:
@@ -190,7 +194,8 @@ def _inspect(
     if completion[0] in remote_files:
         if _read_checkpoint(completion[0], sha, token) != completion[1]:
             raise UploadConflict("Existing ReLIFE publication marker does not match this candidate")
-        if not all_paths.issubset(remote_files):
+        all_checkpoints = {_checkpoint(index, part)[0] for index, part in enumerate(batches, start=1)}
+        if not (all_paths | all_checkpoints).issubset(remote_files):
             raise UploadConflict("Published ReLIFE marker refers to missing media or metadata")
         return (
             {
