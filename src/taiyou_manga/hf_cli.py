@@ -397,17 +397,26 @@ def interactive_menu() -> None:
                 title = ask("Full manga title")
                 key = ask("Stable manga key (optional, e.g. my-manga)")
                 direction = ask("Reading direction (rtl/ltr/vertical; default rtl)") or "rtl"
-                preview = offline_run(offline_parser().parse_args(
-                    ["flat-preview", "--source", source, "--series-title", title]
-                ))
+                preview = offline_run(
+                    offline_parser().parse_args(["flat-preview", "--source", source, "--series-title", title])
+                )
                 print(json.dumps(preview, indent=2))
                 if ask("After reviewing chapter/page counts, type BUILD") != "BUILD":
                     continue
                 bundle = ask("NEW private bundle destination (e.g. bundles/my-manga)")
                 rights = ask("Existing source permission/rights JSON path")
                 build_command = [
-                    "flat-build", "--source", source, "--series-title", title,
-                    "--output", bundle, "--rights-json", rights, "--direction", direction,
+                    "flat-build",
+                    "--source",
+                    source,
+                    "--series-title",
+                    title,
+                    "--output",
+                    bundle,
+                    "--rights-json",
+                    rights,
+                    "--direction",
+                    direction,
                 ]
                 if key:
                     build_command.extend(["--manga-key", key])

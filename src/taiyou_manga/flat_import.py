@@ -14,7 +14,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-from .domain import ControllerError, IMAGE_EXTENSIONS, safe_text
+from .domain import IMAGE_EXTENSIONS, ControllerError, safe_text
 from .images import DEFAULT_LIMITS, Limits, read_limited
 from .sources import ChapterSource, RawPage
 
@@ -89,9 +89,7 @@ def inspect_flat(source: Path, limits: Limits = DEFAULT_LIMITS) -> FlatInventory
         if len(positions) > limits.max_pages:
             raise ControllerError(f"Too many pages in chapter {number}")
         if positions[0] not in (0, 1):
-            raise ControllerError(
-                f"Chapter {number} must start at page 0 or 1, found {positions[0]}"
-            )
+            raise ControllerError(f"Chapter {number} must start at page 0 or 1, found {positions[0]}")
         expected = list(range(positions[0], positions[0] + len(positions)))
         if positions != expected:
             raise ControllerError(
@@ -100,9 +98,11 @@ def inspect_flat(source: Path, limits: Limits = DEFAULT_LIMITS) -> FlatInventory
         chapter_size = sum(size for _, _, size in records)
         if chapter_size > limits.max_archive_bytes:
             raise ControllerError(f"Chapter {number} exceeds the per-chapter byte limit")
-        chapters.append(FlatChapter(
-            number, tuple(path for _, path, _ in records), positions[0], positions[-1], chapter_size
-        ))
+        chapters.append(
+            FlatChapter(
+                number, tuple(path for _, path, _ in records), positions[0], positions[-1], chapter_size
+            )
+        )
 
     # Chapter gaps are warned, not assumed to be missing data (e.g., extra chapters).
     missing: list[int] = []
@@ -131,9 +131,7 @@ def flat_preview(
         "bytes": inventory.bytes_total,
         "chapterNumbers": [chapter.number for chapter in inventory.chapters],
         "missingChapterNumbers": list(inventory.missing_chapters),
-        "firstPageOfEachChapter": {
-            str(chapter.number): chapter.first_page for chapter in inventory.chapters
-        },
+        "firstPageOfEachChapter": {str(chapter.number): chapter.first_page for chapter in inventory.chapters},
         "remoteWrites": 0,
         "requiresBuild": True,
         "requiresApprovedHfUpload": True,
@@ -153,7 +151,9 @@ def discover_flat(
     # The registry key deliberately does not depend on the manga display title.
     # A moved source folder requires reviewed identity-migrate, as for normal imports.
     if manga_key is not None and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,99}", manga_key):
-        raise ControllerError("Stable manga key must contain 1-100 letters, digits, dots, hyphens or underscores")
+        raise ControllerError(
+            "Stable manga key must contain 1-100 letters, digits, dots, hyphens or underscores"
+        )
     source_key = "flat:" + (manga_key if manga_key is not None else source.resolve().as_posix())
     if len(source_key) > 850:
         raise ControllerError("Flat manga source path exceeds stable identity registry limit")

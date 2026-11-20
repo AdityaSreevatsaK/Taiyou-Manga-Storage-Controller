@@ -28,14 +28,17 @@ class FlatImageImportTests(unittest.TestCase):
         self.rights = self.root / "private" / "rights.json"
         self.rights.parent.mkdir()
         self.rights.write_text(
-            json.dumps({
-                "schemaVersion": 1,
-                "sourceType": "owned",
-                "title": "Sample Manga",
-                "permissionEvidence": "Synthetic fixture artwork created for testing",
-                "attribution": "Synthetic test artwork",
-                "recordedAt": "2026-11-20T00:00:00Z",
-            }), encoding="utf-8"
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "sourceType": "owned",
+                    "title": "Sample Manga",
+                    "permissionEvidence": "Synthetic fixture artwork created for testing",
+                    "attribution": "Synthetic test artwork",
+                    "recordedAt": "2026-11-20T00:00:00Z",
+                }
+            ),
+            encoding="utf-8",
         )
 
     def add_page(self, chapter: int, page: int, colour: tuple[int, int, int]) -> Path:
@@ -50,11 +53,23 @@ class FlatImageImportTests(unittest.TestCase):
             self.add_page(1, page, (page * 18, 55, 15))
 
     def build(self, output: Path, manga_key: str = "sample-identity") -> dict[str, object]:
-        args = parser().parse_args([
-            "flat-build", "--source", str(self.source), "--series-title", "Sample Manga",
-            "--rights-json", str(self.rights), "--state-file", str(self.identity),
-            "--output", str(output), "--manga-key", manga_key,
-        ])
+        args = parser().parse_args(
+            [
+                "flat-build",
+                "--source",
+                str(self.source),
+                "--series-title",
+                "Sample Manga",
+                "--rights-json",
+                str(self.rights),
+                "--state-file",
+                str(self.identity),
+                "--output",
+                str(output),
+                "--manga-key",
+                manga_key,
+            ]
+        )
         return run(args)
 
     def test_preview_numeric_order_and_chapter_counts(self) -> None:
@@ -81,9 +96,13 @@ class FlatImageImportTests(unittest.TestCase):
         catalogue = load_json(target / "catalogue.json")
         self.assertEqual(len(catalogue), 1)
         self.assertEqual(catalogue[0]["title"], "Sample Manga")
-        self.assertEqual([ch["label"] for ch in catalogue[0]["chapters"]], [
-            "Chapter 1", "Chapter 2",
-        ])
+        self.assertEqual(
+            [ch["label"] for ch in catalogue[0]["chapters"]],
+            [
+                "Chapter 1",
+                "Chapter 2",
+            ],
+        )
         self.assertEqual([ch["sequence"] for ch in catalogue[0]["chapters"]], [0, 1])
         manifest = load_json(target / "manifests" / f"{catalogue[0]['chapters'][0]['id']}.json")
         self.assertEqual(len(manifest["pages"]), 11)
@@ -95,11 +114,14 @@ class FlatImageImportTests(unittest.TestCase):
             manifest["pages"][10]["sha256"],
             hashlib.sha256((self.source / "1_10.jpg").read_bytes()).hexdigest(),
         )
-        self.assertTrue(all(
-            page["assetPath"].startswith(
-                f"manga/{catalogue[0]['id']}/{catalogue[0]['chapters'][0]['id']}/pg_"
-            ) for page in manifest["pages"]
-        ))
+        self.assertTrue(
+            all(
+                page["assetPath"].startswith(
+                    f"manga/{catalogue[0]['id']}/{catalogue[0]['chapters'][0]['id']}/pg_"
+                )
+                for page in manifest["pages"]
+            )
+        )
         self.assertTrue(all(p["mimeType"] == "image/jpeg" for p in manifest["pages"]))
         self.assertTrue(all(p["sha256"] for p in manifest["pages"]))
         self.assertEqual(len(load_bundles(target)), 1)
@@ -158,9 +180,15 @@ class FlatImageImportTests(unittest.TestCase):
         target = self.root / "bundles" / "one"
         self.build(target)
         record = load_json(target / "catalogue.json")[0]
-        plan, _ = prepare_plan(target, "b" * 40, {"data/library.json"}, b"{}", [
-            {**record, "id": "mng_eeeeeeeeeeee"},
-        ])
+        plan, _ = prepare_plan(
+            target,
+            "b" * 40,
+            {"data/library.json"},
+            b"{}",
+            [
+                {**record, "id": "mng_eeeeeeeeeeee"},
+            ],
+        )
         self.assertEqual(plan["status"], "conflict")
 
 

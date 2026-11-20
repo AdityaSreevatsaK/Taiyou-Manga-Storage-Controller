@@ -323,8 +323,16 @@ def build(
     rights = parse_rights(rights_path)
     with _registry_lock(state_file):
         return _build(
-            source, output, state_file, title, direction, rights, limits,
-            allow_duplicate_pages, flat_numbered, manga_key,
+            source,
+            output,
+            state_file,
+            title,
+            direction,
+            rights,
+            limits,
+            allow_duplicate_pages,
+            flat_numbered,
+            manga_key,
         )
 
 
