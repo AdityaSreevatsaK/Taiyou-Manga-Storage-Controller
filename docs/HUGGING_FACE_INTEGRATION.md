@@ -1,4 +1,7 @@
-# Hugging Face manga storage: authorised ReLIFE import
+# Hugging Face manga storage: authorised ReLIFE import (historical)
+
+> **Historical ReLIFE upload runbook, superseded as a current storage description.** The original root catalogue.json/manifests/assets paths shown below are preserved legacy recovery paths, not the current reader-compatible dataset. ReLIFE was subsequently migrated to **data/library.json**, data/manifests/ and data/manga/, and four more titles were uploaded. Read [current data contract](DATA_CONTRACTS.md) and [Repository Handbook](REPOSITORY_HANDBOOK.md) before any new operation. The migration hold documented at the bottom of this page **was resolved** on 20 November 2026. Do not rerun a historic workflow as a general manga upload.
+
 
 **Private destination:** `AdityaSreevatsaK/Taiyous-Manga`, previously verified through the protected GitHub environment `hf-manga-upload` and its `HF_TOKEN` secret.
 

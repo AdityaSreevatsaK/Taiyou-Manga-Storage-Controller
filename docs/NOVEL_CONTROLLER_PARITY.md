@@ -1,7 +1,7 @@
 # Manga Storage Controller: Novel Controller workflow parity
 
-Reference: Taiyou-Novels-Storage-Controller \`00_storage_menu.cmd\`, its
-\`docs/USER_GUIDE.md\` and Python implementation. Manga uses a different
+Reference: Taiyou-Novels-Storage-Controller `00_storage_menu.cmd`, its
+`docs/USER_GUIDE.md` and Python implementation. Manga uses a different
 data model: images, chapter manifests and verified cover bytes, not EPUB
 or novel original.zip conventions.
 
@@ -10,14 +10,14 @@ or novel original.zip conventions.
 Install Python 3.11 or 3.12. From the Manga Controller folder run:
 
     py -3 -m pip install -e ".[huggingface]"
-    set HF_TOKEN=hf_your_private_scoped_token
+    rem Set a scoped HF_TOKEN privately in the current shell; do not persist or paste it
     00_manga_storage_menu.cmd
 
 In PowerShell, set the token for the current terminal with
-\`$env:HF_TOKEN="..." \`. Do not save it in the repository, screenshots or
+`$env:HF_TOKEN`. Do not save it in the repository, screenshots or
 GitHub workflows. The default Windows entry now shows the Novel-style 20-option
 private Manga Controller. Existing synthetic/offline commands remain under
-option 20 (or \`py -3 -m taiyou_manga offline-menu\`).
+option 20 (or `py -3 -m taiyou_manga offline-menu`).
 
 **Live Hugging Face writes do not run on opening the menu.** Preview first;
 every write uses an explicit approval or exact-title confirmation.
@@ -32,18 +32,18 @@ every write uses an explicit approval or exact-title confirmation.
 | 4 Detect conflicts | Normalised title and alternative-name checks | Cross-ID duplicate detection |
 | 5 Verify integrity | Quick, manifest or full image decoding+SHA-256 | Deep is slow and transfers media; quick checks folder/manifests, not image bytes |
 | 6 Sync status | Compare local verified bundles with remote catalogue | Content identity not established by structural comparison alone |
-| 7 Backup catalogue | Exact byte-for-byte copy of private \`data/library.json\` | **Catalogue backup is not a full-media backup** |
-| 8 Restore novel | Restore a reversibly de-listed manga | Requires saved private \`control/delist-backups/<revision>/library.json\` and original media present; dry-run + approval |
+| 7 Backup catalogue | Exact byte-for-byte copy of private `data/library.json` | **Catalogue backup is not a full-media backup** |
+| 8 Restore novel | Restore a reversibly de-listed manga | Requires saved private `control/delist-backups/<revision>/library.json` and original media present; dry-run + approval |
 | 9 Delete novel | Reversible de-list of one manga | Original images, chapters, covers, manifests and personal data remain intact; no permanent deletion |
 | 10 Upload covers | Direct ZIP or candidate-based private metadata/cover uploader | Accepts a bounded ZIP with metadata.json and covers/, retaining original formats, source provenance, rights and snapshot backup |
 | 11 CLEAR private HF data | **Deliberately disabled** | Entire-dataset wipe was unsafe in past; never recreated here |
 | 12 Chapter inventory | All chapters in private CSV | Includes immutable chapter IDs and page counts |
 | 13 Audit covers | Catalogue completeness CSV | Identifies missing cover references; use manifest/deep integrity to verify remote presence/bytes |
-| 14 Compare Retriever inventory | CSV of exact ID matches, missing records and title-only manual reviews | Accepts local JSON list or \`{"entries":[...]}\` format |
+| 14 Compare Retriever inventory | CSV of exact ID matches, missing records and title-only manual reviews | Accepts local JSON list or `{"entries":[...]}` format |
 | 15 Health dashboard | Local HTML (or JSON/CSV) | Escapes private manga titles and displays missing publication fields |
-| 16 Backfill inspection manifests | **Read-only audit, no automated modification** | Existing canonical \`data/manifests/\` must be verified; rebuilding hashes without originals is unsafe |
-| 17 Clean inspection downloads | Preview/clean old local \`.part\` files only | No original ZIPs or remote files deleted |
-| 18 Metadata repair | Private metadata report and guarded reconciliation | Existing \`hf_metadata\` preview/apply supports original covers and provenance |
+| 16 Backfill inspection manifests | **Read-only audit, no automated modification** | Existing canonical `data/manifests/` must be verified; rebuilding hashes without originals is unsafe |
+| 17 Clean inspection downloads | Preview/clean old local `.part` files only | No original ZIPs or remote files deleted |
+| 18 Metadata repair | Private metadata report and guarded reconciliation | Existing `hf_metadata` preview/apply supports original covers and provenance |
 
 The Novel Controller itself labels some single-novel restore/delete launchers
 as placeholders; Manga implements **reversible** versions instead of copying
@@ -63,11 +63,11 @@ unsafe destructive behaviour.
 
 ## Bulk upload, without per-title custom workflows
 
-The input is one candidate manga bundle produced by the existing \`manifest\`
+The input is one candidate manga bundle produced by the existing `manifest`
 command or a directory of such individually verified bundles. Each bundle
 must contain catalogue.json, inventory.json, manifests/, assets/manga/,
 and a valid rights.json matching its source manga. Keep the private
-\`.manga-controller/ids.json\` registry backed up for stable identities.
+`.manga-controller/ids.json` registry backed up for stable identities.
 
 Example manga source layout (chapters may be CBZs or page folders):
 
@@ -81,7 +81,7 @@ Example manga source layout (chapters may be CBZs or page folders):
           002.jpg
 
 Build one verified single-manga bundle per title using the existing
-\`python -m taiyou_manga manifest --source PATH --output BUNDLE --rights-json RIGHTS\`
+`python -m taiyou_manga manifest --source PATH --output BUNDLE --rights-json RIGHTS`
 workflow. Chapter paths inferred by the builder must be checked in the
 preview; labels are not stable IDs.
 
@@ -126,7 +126,7 @@ source attribution and permission evidence.
 
 This removes only the catalogue record, preserving the immutable original
 pages, chapter manifests and cover for later restoration. The previous
-\`data/library.json\` is saved under \`control/delist-backups/<source-revision>/library.json\`.
+`data/library.json` is saved under `control/delist-backups/<source-revision>/library.json`.
 No entire dataset delete command or permanent purge exists.
 
 To restore:

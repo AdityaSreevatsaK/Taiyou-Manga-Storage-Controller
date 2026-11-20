@@ -1,94 +1,120 @@
 # Taiyou Manga Storage Controller
 
-Offline-first, **Windows-friendly** Python tools for inspecting authorised manga images, generating private candidate manifests, verifying local media, previewing uploads against a mock and creating recoverable backups. **No real manga source files, Hugging Face dataset or final storage layout are required.**
+**The control plane for Taiyou's private Manga Library.** A Python 3.11/3.12, Windows-friendly tool for safely importing, verifying, managing, backing up and repairing original-image manga stored in a **private Hugging Face dataset**.
 
-> **Privacy and rights:** This GitHub repository is public. Never commit manga images, private manifests, media backups, personal notes or credentials. Only import media you are authorised to store. The controller does not download or scrape manga. **Private Hugging Face operations require validated sources, revision-guarded previews and explicit owner approval. Full dataset deletion is disabled.**
+The public repository contains code and synthetic tests, **never private manga content**. It is not the manga reader, a scraper, an EPUB tool or a public hosting service.
 
-## Novel-style Manga Controller tools
+## Start here
 
-For the Windows menu and private Hugging Face catalogue listing, bulk upload/download,
-conflicts, integrity checks, backups, cover audits, restore and guarded single-manga
-deletion, see [Manga / Novel Controller feature parity](docs/NOVEL_CONTROLLER_PARITY.md).
-The default `00_manga_storage_menu.cmd` now opens the private manga management menu;
-previous synthetic/offline demos remain at option 20.
+| Audience | Primary documentation |
+|---|---|
+| Owner using the Windows menu | [Windows and HF operating guide](docs/OPERATIONS.md) |
+| New engineer exploring the repo | [Complete repository handbook](docs/REPOSITORY_HANDBOOK.md) |
+| **AI coding agent** | **[AGENTS.md](AGENTS.md)** and [AI Agent Playbook](docs/AI_AGENT_PLAYBOOK.md) |
+| New session / handover | [Ready-to-copy AI session prompt](docs/SESSION_HANDOVER_PROMPT.md) |
+| Integrating Reader / Retriever | [Canonical data contract](docs/DATA_CONTRACTS.md) |
+| Reviewing storage/security | [Architecture](docs/ARCHITECTURE.md), [Decisions](docs/DECISIONS.md), [Safety and recovery](docs/SAFETY_AND_RECOVERY.md) |
+| Comparing against Novel Controller | [20-option feature parity](docs/NOVEL_CONTROLLER_PARITY.md) |
+| Future priorities | [Current roadmap](docs/ROADMAP.md) |
 
-Install `py -3 -m pip install -e ".[huggingface]"` for cloud tools and set
-`HF_TOKEN` through your terminal environment. No private dataset writes occur by
-opening the menu. The whole-dataset wipe option remains disabled.
+**Important:** The Controller was initially offline-only, and some historical docs describe the earlier ReLIFE migration hold. That migration **completed**. Follow the current handbook, data contract and code rather than a dated migration warning.
 
-## Quick start on Windows (PowerShell)
+## What you can do
 
-Install Python 3.11 or 3.12, then:
+- Import original image folders and ZIP/CBZ chapter sources into verified local manga bundles.
+- Preserve stable opaque manga, chapter and page IDs through ordinary title changes.
+- Create and verify private original-media backups; use a local mock for safe previews.
+- Manage a private Hugging Face catalogue: bulk upload/download, list titles, detect title/alias conflicts, check integrity and sync status, export chapters and health reports.
+- Import original cover ZIPs and source publication metadata with provenance and manual-value protection.
+- Back up the canonical catalogue before remote updates.
+- Reversibly de-list a single manga without deleting any media, and restore its catalogue entry from the saved private backup.
 
-```powershell
-git clone https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller.git
-cd Taiyou-Manga-Storage-Controller
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e .
-python -m taiyou_manga menu
-```
+The **whole-dataset wipe option is disabled**. Permanent deletion, public media hosting and source scraping are not part of the Controller.
 
-If PowerShell activation is restricted, use `.\.venv\Scripts\python.exe -m taiyou_manga menu` directly. Alternatively, once installed with `py -3 -m pip install -e .`, double-click **`00_manga_storage_menu.cmd`**.
+## Current storage model
 
-## Complete offline demonstration
+Private dataset: **AdityaSreevatsaK/Taiyous-Manga**.
 
-```powershell
-python -m taiyou_manga fixtures --output demo_manga
-python -m taiyou_manga scan --source demo_manga
-python -m taiyou_manga manifest --source demo_manga --output bundles/demo-1 --rights-json demo_manga-rights-example.json
-python -m taiyou_manga inventory --bundle bundles/demo-1
-python -m taiyou_manga export-csv --bundle bundles/demo-1 --output reports/demo-1.csv
-python -m taiyou_manga verify --bundle bundles/demo-1
-python -m taiyou_manga plan-upload --bundle bundles/demo-1 --mock-dir mock_remote
-python -m taiyou_manga backup --bundle bundles/demo-1 --output backups/demo-1.zip
-python -m taiyou_manga check-backup --backup backups/demo-1.zip
-python -m taiyou_manga restore --backup backups/demo-1.zip --destination bundles/restore-preview
-```
+    data/library.json                      # v1: schemaVersion, mediaKind, entries
+    data/manifests/<ch_id>.json            # chapter/page order, original hashes
+    data/manga/<mng_id>/<ch_id>/<pg_id>.<original-extension>
+    data/covers/<mng_id>.<original-extension>
+    control/...                            # pre-change backups, rights, audit
+    ingest/...                             # ingestion checkpoints
 
-`restore` previews only by default. Add `--approve` to restore into a **new** local folder. `mock-upload` also requires `--approve` and the exact expected revision from `plan-upload`; it writes only to a disposable local mock directory. Neither command writes to Hugging Face.
+The reader owns URL slugs, private asset serving, offline reading, bookmarks, reading progress, personal tags and collections. Those are not the Controller's catalogue fields.
 
-`scan` and `manifest` enforce chapter and total import quotas without retaining all chapters' image bytes in RAM; adjust with `--max-chapters` and `--max-total-mb` (default 10,000 chapters and 5,000 MB). Archive and folder chapters each have a 500 MB safety ceiling. See [docs/IMPORT_FORMATS.md](docs/IMPORT_FORMATS.md).
+**Dated evidence, not a permanent inventory:** On 20 November 2026, a protected read-only live check verified **5 manga, 587 chapters, 14,635 pages and five real covers with metadata**, at dataset revision 0942616f03e165c7f9e4258110c9fdb4b085f1fc. See [the verified run](https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller/actions/runs/44721448011). Check the current revision before making claims about live data.
 
-The synthetic generator creates **two original fictional series, four chapters and 12 PNG pages**. The default candidate manifest uses the Manga Library's `ChapterManifest` v1 and `MangaEntry` field shapes. A `.manga-controller/ids.json` registry preserves opaque IDs across repeat imports; keep this private file backed up. Registry writes now use a cross-process exclusive lock and a secure atomic file replacement. If a prior process crashed, inspect any `ids.json.lock` before manually clearing it. Changing a displayed title does not change IDs. Changing the source paths without preserving the registry mapping is **not yet supported**.
+## Quick start: Windows
 
-## Current boundaries
+In PowerShell or Command Prompt:
 
-| Area | Status |
-| --- | --- |
-| Folders, ZIP/CBZ, PNG/JPEG/WebP/AVIF content validation | Implemented; AVIF decode needs a Pillow build with AVIF support |
-| Natural page ordering, SHA-256, image dimensions, duplicate pages, immutable IDs | Implemented locally |
-| Local candidate manifests and original media bundle | Implemented (not an approved cloud layout) |
-| JSON and private CSV reports, complete local mock revisions, preview-only upload planning | Implemented |
-| Verified full-media backups, read-only restore preview, new-folder restoration | Implemented |
-| Read-only private HF dataset health | Optional; requires `pip install -e ".[huggingface]"` and an explicit repo ID |
-| Private ReLIFE HF upload | **Approved; revision-guarded workflow with resumable commits** |
-| General HF manga bulk upload, catalogue/list/status, downloads, sync and safe de-list | **Implemented with preview, source rights and revision guards**; see [operations](docs/NOVEL_CONTROLLER_PARITY.md) |
+    git clone https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller.git
+    cd Taiyou-Manga-Storage-Controller
+    py -3.11 -m venv .venv
+    .venv\Scripts\python.exe -m pip install -e ".[huggingface]"
+    .venv\Scripts\python.exe -m taiyou_manga menu
 
-**CSV exports contain private series and chapter titles.** They use a new-file-only destination, spreadsheet formula escaping and a Git-ignore rule, but should never be committed or shared publicly. The Windows menu also offers CSV export.
+You can also open **00_manga_storage_menu.cmd** once the package is installed. The default interactive menu provides 20 numbered options. For the original **offline** local menu, run:
 
-Local backup archives include media **and** manifests. A catalogue export on its own is **not** a media backup. Mock preview now also reports `metadataConflicts` and refuses changed chapter order, catalogue records and rights evidence; it will not silently declare a metadata-only change a no-op. For contracts and decisions see [docs/DATA_CONTRACTS.md](docs/DATA_CONTRACTS.md), [docs/SAFETY_AND_RECOVERY.md](docs/SAFETY_AND_RECOVERY.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
+    .venv\Scripts\python.exe -m taiyou_manga offline-menu
 
-## Development
+Set an appropriately scoped private HF_TOKEN environment variable in your current terminal before cloud operations. Do **not** hardcode it or add it to tracked files.
 
-```powershell
-python -m pip install -e ".[dev]"
-python -m unittest discover -s tests -v
-python -m ruff check .
-python -m ruff format --check .
-python -m mypy src/taiyou_manga
-```
+## Basic commands
 
-GitHub Actions covers Python 3.11/3.12 on Windows and Linux with synthetic fixtures only. No Hugging Face authentication is required in CI.
+Use **python -m taiyou_manga.hf_cli** for private HF catalogue management:
 
-Software is MIT-licensed; **this licence does not grant any rights to third-party manga artwork**.
-\nIdentity registry recovery after renaming manga folders: [safe migration guide](docs/IDENTITY_MIGRATION.md). By default migration only previews mappings; applying requires an exact registry revision, a new private backup path and `--approve`.\n
-ReLIFE Actions source media can be **audited without upload** using the protected local CLI `relife-preflight` or the isolated [ReLIFE source preflight workflow](docs/RELIFE_SOURCE_PREFLIGHT.md). It does not use Hugging Face write credentials.
+    python -m taiyou_manga.hf_cli list --output reports/manga-list.csv
+    python -m taiyou_manga.hf_cli conflicts --output reports/duplicate-titles.csv
+    python -m taiyou_manga.hf_cli verify --mode quick --output reports/integrity.json
+    python -m taiyou_manga.hf_cli verify --mode manifest --output reports/manifests.json
+    python -m taiyou_manga.hf_cli metadata-report --output reports/metadata.json
+    python -m taiyou_manga.hf_cli health --output reports/health.html
+    python -m taiyou_manga.hf_cli backup-catalogue --output backups/library.json
+    python -m taiyou_manga.hf_cli download --destination downloads
 
-The historical ReLIFE source and migration workflows are documented in [Hugging Face integration](docs/HUGGING_FACE_INTEGRATION.md). Future general-purpose imports run locally through the [bulk upload and management commands](docs/NOVEL_CONTROLLER_PARITY.md). No workflow or CLI uploads public media artefacts; every remote mutation requires its own verified approval and post-commit checks.
+For an approved new upload or metadata repair, **preview first** and apply only the reviewed, still-current plan with explicit approval. Examples and recovery procedures are in [OPERATIONS.md](docs/OPERATIONS.md).
 
-## Canonical private Hugging Face layout (migration complete)
+### Safe offline demo
 
-**Canonical:** `data/library.json` containing `{"schemaVersion":1,"mediaKind":"manga","entries":[...]}`. Chapters and pages belong under `data/manifests/` and `data/manga/`. The legacy ReLIFE files remain intact under root `catalogue.json`, `manifests/` and `assets/manga/` as preserved recovery originals; the app reads the canonical `data/` structure. See [canonical data contract](docs/DATA_CONTRACTS.md).
+No private token or copyrighted source media is needed:
 
-ReLIFE was migrated to the canonical layout, followed by the verified uploads of Maid-sama!, Last Game, Love So Life and Onizuka-chan and Sawarida-kun. All five publication records and original cover images were subsequently enriched in private Hugging Face. Future verified manga can be imported through the new [Novel-style Manga Controller menu](docs/NOVEL_CONTROLLER_PARITY.md) with explicit approval. Original IDs and image bytes remain unchanged. The previous incompatible legacy-format PR #20 was closed without merging.
+    python -m taiyou_manga fixtures --output demo_manga
+    python -m taiyou_manga scan --source demo_manga
+    python -m taiyou_manga manifest --source demo_manga --output bundles/demo-1 --rights-json demo_manga-rights-example.json
+    python -m taiyou_manga verify --bundle bundles/demo-1
+    python -m taiyou_manga plan-upload --bundle bundles/demo-1 --mock-dir mock_remote
+    python -m taiyou_manga backup --bundle bundles/demo-1 --output backups/demo-1.zip
+    python -m taiyou_manga check-backup --backup backups/demo-1.zip
+
+The local candidate bundle is not the canonical HF data/ layout. The mock cannot modify production.
+
+## Development and CI
+
+Install development dependencies:
+
+    python -m pip install -e ".[dev]"
+    python -m unittest discover -s tests -v
+    python -m ruff format --check .
+    python -m ruff check .
+    python -m mypy src/taiyou_manga
+    python -m pip_audit
+
+Normal [CI](.github/workflows/ci.yml) runs these checks with synthetic inputs on **Windows and Linux, Python 3.11 and 3.12**. It never requires original manga images or private HF write tokens.
+
+Some *separately protected*, historically owner-authorised GitHub workflows have performed real HF data operations; treat them as special cases requiring review, not reusable generic import tools. The [read-only live management smoke](.github/workflows/private-manga-management-smoke.yml) validates the private catalogue but has dated five-title expectations that must be updated as the library grows.
+
+The original source registry and private exports stay in ignored locations such as .manga-controller/, reports/, backups/, downloads/, private/ and bundles/. Never commit those files.
+
+## Safety and rights
+
+- No public manga assets, cover images, private provenance or passwords in the code repository.
+- Existing manga/chapter/page IDs, original bytes and manual metadata must be preserved.
+- A private write requires a validated source, owner approval for the exact operation, a preview at the current revision, a pre-change catalogue backup and post-commit verification.
+- A catalogue backup alone is **not** an independent full-media backup.
+- Permission for private retention does not grant copyright redistribution rights.
+- Whole-dataset deletion remains disabled. Normal "Delete manga" is reversible catalogue de-listing, retaining originals.
+
+**For AI agents, [AGENTS.md](AGENTS.md) is mandatory before changing code.** This repository uses an MIT licence for its software; the licence does **not** apply to third-party manga artwork.

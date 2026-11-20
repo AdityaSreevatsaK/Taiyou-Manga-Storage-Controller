@@ -1,5 +1,7 @@
 # Protected owner-approved four-manga Hugging Face upload (20 November 2026)
 
+> **Historical audit record:** This specific append-only four-title workflow subsequently completed successfully. Do not reapply its dated approval to new titles. The note below about the lack of an independent off-platform full-media backup was an important safety limitation and must not be silently erased. Current safe operations are documented in [AGENTS.md](../AGENTS.md) and [Repository Handbook](REPOSITORY_HANDBOOK.md).
+
 The owner expressly requested uploading the four previously validated English
 manga after ReLIFE was migrated to the canonical private dataset.
 
