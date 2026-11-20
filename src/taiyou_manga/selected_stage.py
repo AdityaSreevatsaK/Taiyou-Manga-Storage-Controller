@@ -206,7 +206,7 @@ def stage_selected_manga(slug: str, artifact_dir: Path, output: Path, registry: 
             raise ControllerError("Selected manga total archived page count changed")
         registry.parent.mkdir(parents=True, exist_ok=True)
         write_json(registry, stable_registry(title, set(deduplicated)))
-        report = build(src, output, registry, direction="vertical")
+        report = build(src, output, registry, direction="vertical", allow_duplicate_pages=True)
         check = verify_bundle(output)
         if (
             report["series"] != 1
