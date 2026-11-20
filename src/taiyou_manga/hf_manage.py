@@ -479,3 +479,79 @@ def delete_apply(token: str, manga_id: str, plan_path: Path, confirm_title: str)
         raise UploadConflict("De-list verification failed or original files changed")
     return {"status": "delisted", "mangaId": manga_id, "filesDeleted": 0,
             "catalogueBackup": backup_path}
+
+
+
+def restore_delisted(
+    token: str, manga_id: str, original_revision: str,
+    plan_file: Path, *, approve: bool = False,
+) -> dict[str, object]:
+    """Re-list a previously removed manga, keeping original media and IDs."""
+    if not re.fullmatch(r"[0-9a-f]{40}", original_revision):
+        raise ControllerError("Restoration must reference an original 40-character revision")
+    api, sha, files, before, existing = snapshot(token)
+    if any(entry["id"] == manga_id for entry in existing):
+        raise ControllerError("Manga is already present in current catalogue")
+    backup = f"control/delist-backups/{original_revision}/library.json"
+    if backup not in files:
+        raise ControllerError("Private pre-deletion catalogue snapshot is missing")
+    saved = _read_file(backup, sha, token, MAX_REPORT_BYTES)
+    from .hf_layout import validate_library
+
+    old = validate_library(json.loads(saved))
+    matches = [entry for entry in old if entry["id"] == manga_id]
+    if len(matches) != 1:
+        raise ControllerError("Chosen backup has no matching immutable manga ID")
+    target = matches[0]
+    new = [
+        *existing, target,
+    ]
+    if title_conflicts(new):
+        raise ControllerError("Restoring would introduce ambiguous manga titles")
+    for chapter in target["chapters"]:
+        name = f"data/manifests/{chapter['id']}.json"
+        if name not in files:
+            raise ControllerError("Original chapter manifest is absent; cannot safely restore")
+        doc = _manifest(api, token, sha, target, chapter)
+        if not all(f"data/{page.assetPath}" in files for page in doc.pages):
+            raise ControllerError("Original manga page is missing, cannot safely restore")
+    if target.get("cover") and cover_asset_path(target["cover"], manga_id) not in files:
+        raise ControllerError("Original manga cover image is missing")
+    canonical = _json_data(canonical_library(sorted(
+        new, key=lambda row: row["title"].casefold()
+    )))
+    plan = {
+        "operation": "restore-delisted-manga", "mangaId": manga_id,
+        "title": target["title"], "expectedRevision": sha,
+        "sourceBackup": backup, "sourceBackupSha256": hashlib.sha256(saved).hexdigest(),
+        "catalogueSha256": hashlib.sha256(before).hexdigest(),
+        "newCatalogueSha256": hashlib.sha256(canonical).hexdigest(),
+        "remoteMediaWrites": 0, "remoteMediaDeletes": 0,
+    }
+    if not approve:
+        _new_file(plan_file, _json_data(plan))
+        return plan
+    if plan_file.is_symlink() or not plan_file.is_file():
+        raise ControllerError("Restore requires a pre-approved unchanged plan")
+    if json.loads(plan_file.read_bytes()) != plan:
+        raise UploadConflict("Private manga restore revision or plan changed after preview")
+    backup_path = f"control/delist-restorations/{sha}/library.json"
+    if backup_path in files:
+        raise UploadConflict("Original destination for restore snapshot is already occupied")
+    if api.dataset_info(DATASET, token=token).sha != sha:
+        raise UploadConflict("Private dataset changed before restored catalogue commit")
+    from huggingface_hub import CommitOperationAdd
+
+    api.create_commit(
+        repo_id=DATASET, repo_type="dataset", revision="main", token=token,
+        parent_commit=sha, commit_message=f"Restore de-listed manga {manga_id}",
+        operations=[
+            CommitOperationAdd(path_in_repo=backup_path, path_or_fileobj=before),
+            CommitOperationAdd(path_in_repo=CANONICAL_CATALOGUE, path_or_fileobj=canonical),
+        ],
+    )
+    _, _, after_files, _, after_entries = snapshot(token)
+    if not files.issubset(after_files) or manga_id not in {entry["id"] for entry in after_entries}:
+        raise UploadConflict("Private restored manga verification failed")
+    return {"status": "restored", "mangaId": manga_id, "remoteMediaWrites": 0,
+            "catalogueBackup": backup_path}
