@@ -1,0 +1,71 @@
+name: Owner-agent private manga ingest (preview then protected apply)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticket:
+        description: 'Opaque 32-character private staging ticket'
+        required: true
+        type: string
+      phase:
+        description: 'Preview only, or apply a previously previewed exact revision/fingerprint'
+        required: true
+        type: choice
+        options: [preview, apply]
+      revision:
+        description: '40-char previewed private dataset revision (apply only)'
+        required: false
+        type: string
+      fingerprint:
+        description: '64-char preview approval fingerprint (apply only)'
+        required: false
+        type: string
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manga-canonical-hf-commits
+  cancel-in-progress: false
+
+jobs:
+  private-manga-import:
+    if: >-
+      github.ref == 'refs/heads/master' &&
+      github.actor == 'AdityaSreevatsaK' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request == null &&
+          github.event.issue.title == 'Private manga import queue' &&
+          github.event.comment.user.login == 'AdityaSreevatsaK' &&
+          startsWith(github.event.comment.body, '/manga-import ')
+        )
+      )
+    runs-on: ubuntu-latest
+    environment: hf-manga-upload
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install validated private Manga Controller
+        run: |
+          python -m pip install --upgrade 'setuptools>=84.1.0'
+          python -m pip install -e '.[huggingface]'
+      - name: Validate owner-issued preview or exact approved apply
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_DISABLE_TELEMETRY: '1'
+        run: python scripts/github_manga_ingest.py
+
+# This runs from the protected master branch only. GitHub never receives the
+# private source ZIP as an Action artifact, code commit, issue attachment or log.
+# Owner-issued commands reference opaque tickets in an already private HF dataset.
+# Preview has zero canonical writes. Apply requires the previewed SHA + fingerprint.

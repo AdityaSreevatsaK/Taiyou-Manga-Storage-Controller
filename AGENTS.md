@@ -66,6 +66,21 @@ manifest and general bulk uploader. For exact reader coordination see
 This flow supports new complete manga only; do not silently append to an
 already published manga or change existing IDs.
 
+## Owner-agent GitHub manga imports
+
+The protected workflow
+[Private agent manga ingest](.github/workflows/private-agent-manga-ingest.yml)
+reads only SHA-256-pinned ZIPs staged in the existing private Hugging Face
+dataset. GitHub issues carry opaque ticket IDs, not media URLs, tokens or
+artwork. Only owner-authored commands on the dedicated import queue may
+trigger preview/apply; apply requires a matching immutable expected
+revision and SHA-256 approval fingerprint. Never expose source ZIPs as public
+GitHub artifacts or bypass private-catalogue revision checks.
+
+Read [GitHub Agent Import Guide](docs/GITHUB_AGENT_PRIVATE_IMPORT.md)
+before remotely triggering uploads. A read-only successful preview is
+not a production upload. Report the actual verified post-write revision.
+
 ## Implementation and testing expectations
 
 - Python 3.11 and 3.12, Windows and Linux. Windows PowerShell/Command Prompt menu must continue to work.
