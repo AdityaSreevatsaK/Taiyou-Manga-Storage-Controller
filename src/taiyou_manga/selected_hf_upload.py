@@ -278,6 +278,10 @@ def selected_apply(
 ) -> dict[str, object]:
     if not approve or not token:
         raise ControllerError("Protected Hugging Face upload must be explicitly approved")
+    if os.getenv("TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED") != "yes":
+        raise ControllerError(
+            "Live selected uploads blocked until independent full-media backup and private staging test are verified"
+        )
     from huggingface_hub import CommitOperationAdd
 
     title = selected_title(slug)
@@ -326,10 +330,6 @@ def selected_apply(
         done += 1
         print(f"Uploaded private {slug} page batch {index}/{len(parts)}", flush=True)
     # Atomically reveal the title in the existing catalogue only after all pages are committed.
-    if os.getenv("TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED") != "yes":
-        raise ControllerError(
-            "Live selected uploads blocked until independent full-media backup and private staging test are verified"
-        )
     updated = sorted([*old_entries, entry], key=lambda item: str(item["title"]).casefold())
     ops = [CommitOperationAdd(path_in_repo=record.path, path_or_fileobj=record.local) for record in metadata]
     ops.append(
