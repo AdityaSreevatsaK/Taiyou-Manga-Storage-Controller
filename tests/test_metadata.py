@@ -265,12 +265,8 @@ class MetadataTests(unittest.TestCase):
             result = apply(remote, "token", self.document, approval, approve=True)
         self.assertEqual(result["coversAdded"], 1)
         self.assertEqual(result["coverRightsStored"], 1)
-        self.assertEqual(
-            remote.files["data/covers/mng_aaaaaaaaaaaa.webp"], bytes_image
-        )
-        self.assertEqual(
-            {path: remote.files[path] for path in pages_before}, pages_before
-        )
+        self.assertEqual(remote.files["data/covers/mng_aaaaaaaaaaaa.webp"], bytes_image)
+        self.assertEqual({path: remote.files[path] for path in pages_before}, pages_before)
         self.assertEqual(remote.files[result["catalogueBackup"]], original_bytes)
         rights_path = plan["coverRights"][0]["path"]
         rights_doc = json.loads(remote.files[rights_path])
