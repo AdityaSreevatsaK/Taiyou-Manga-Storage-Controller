@@ -275,7 +275,7 @@ def interactive_menu() -> None:
                     invoke(["metadata", "--candidates", source, "--plan-file", plan,
                             "--apply", "--approve"])
             elif choice == "11":
-                print("Whole-dataset deletion is intentionally unavailable; use reversible single-manga de-list.")
+                print("Whole-dataset deletion is disabled. Use reversible single-manga de-list instead.")
             elif choice == "12":
                 invoke(["chapters", "--output", ask("NEW chapter inventory CSV path")])
             elif choice == "13":
