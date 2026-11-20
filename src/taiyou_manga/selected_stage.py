@@ -225,3 +225,28 @@ def stage_selected_manga(
             "persistedIDsDeterministic": True,
             "readyForRemoteUpload": True,
         }
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+    import sys
+
+    from .selected_titles import TITLES
+
+    parser = argparse.ArgumentParser(description="Verify and stage one approved manga title locally")
+    parser.add_argument("--slug", choices=tuple(TITLES), required=True)
+    parser.add_argument("--artifact-dir", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--registry", type=Path, required=True)
+    args = parser.parse_args(argv)
+    try:
+        result = stage_selected_manga(args.slug, args.artifact_dir, args.output, args.registry)
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    except (ControllerError, OSError) as exc:
+        print(f"Selected manga source import refused: {exc}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
