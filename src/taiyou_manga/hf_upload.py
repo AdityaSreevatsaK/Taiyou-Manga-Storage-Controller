@@ -55,7 +55,7 @@ def _json_bytes(value: object) -> bytes:
 def _digest_records(records: list[UploadFile]) -> str:
     sha = hashlib.sha256()
     for record in records:
-        sha.update(f"{record.path}\0{record.size}\0{record.digest}\n".encode("utf-8"))
+        sha.update(f"{record.path}\0{record.size}\0{record.digest}\n".encode())
     return sha.hexdigest()
 
 
@@ -107,7 +107,9 @@ def _attestation() -> dict[str, object]:
         "sourceRun": SOURCE_RUN,
         "dataset": DATASET,
         "permissionType": "user-attested",
-        "ownerStatement": "User confirmed permission to store these ReLIFE English scans in the private dataset",
+        "ownerStatement": (
+            "User confirmed permission to store these ReLIFE English scans in the private dataset"
+        ),
         "affirmedOn": "2026-11-20",
         "independentlyVerified": False,
         "source": "MangaDex ReLIFE English user-uploaded edition; ReLIFE by YayoiSo",
