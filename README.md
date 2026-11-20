@@ -2,7 +2,7 @@
 
 Offline-first, **Windows-friendly** Python tools for inspecting authorised manga images, generating private candidate manifests, verifying local media, previewing uploads against a mock and creating recoverable backups. **No real manga source files, Hugging Face dataset or final storage layout are required.**
 
-> **Privacy and rights:** This GitHub repository is public. Never commit manga images, private manifests, media backups, personal notes or credentials. Only import media you are authorised to store. The controller does not download or scrape manga. **Hugging Face writes are disabled.**
+> **Privacy and rights:** This GitHub repository is public. Never commit manga images, private manifests, media backups, personal notes or credentials. Only import media you are authorised to store. The controller does not download or scrape manga. **General-purpose Hugging Face writes remain disabled. ReLIFE has a narrowly authorised, guarded private upload workflow.**
 
 ## Quick start on Windows (PowerShell)
 
@@ -50,7 +50,8 @@ The synthetic generator creates **two original fictional series, four chapters a
 | JSON and private CSV reports, complete local mock revisions, preview-only upload planning | Implemented |
 | Verified full-media backups, read-only restore preview, new-folder restoration | Implemented |
 | Read-only private HF dataset health | Optional; requires `pip install -e ".[huggingface]"` and an explicit repo ID |
-| HF upload, private cloud reader, account creation, sync, destructive commands | **Disabled / awaiting owner approval** |
+| Private ReLIFE HF upload | **Approved; revision-guarded workflow with resumable commits** |
+| Other HF uploads, private cloud reader, account creation, sync, destructive commands | **Disabled / not implemented** |
 
 **CSV exports contain private series and chapter titles.** They use a new-file-only destination, spreadsheet formula escaping and a Git-ignore rule, but should never be committed or shared publicly. The Windows menu also offers CSV export.
 
@@ -71,3 +72,5 @@ GitHub Actions covers Python 3.11/3.12 on Windows and Linux with synthetic fixtu
 Software is MIT-licensed; **this licence does not grant any rights to third-party manga artwork**.
 \nIdentity registry recovery after renaming manga folders: [safe migration guide](docs/IDENTITY_MIGRATION.md). By default migration only previews mappings; applying requires an exact registry revision, a new private backup path and `--approve`.\n
 ReLIFE Actions source media can be **audited without upload** using the protected local CLI `relife-preflight` or the isolated [ReLIFE source preflight workflow](docs/RELIFE_SOURCE_PREFLIGHT.md). It does not use Hugging Face write credentials.
+
+The specific approved **ReLIFE private Hugging Face upload** runs through [its protected GitHub Actions workflow](.github/workflows/relife-private-hf-upload.yml) and its [storage contract](docs/HUGGING_FACE_INTEGRATION.md). It uploads neither personal progress nor public media artefacts. Its completeness must be confirmed in Actions; adding a workflow is not itself proof that the remote upload succeeded.
