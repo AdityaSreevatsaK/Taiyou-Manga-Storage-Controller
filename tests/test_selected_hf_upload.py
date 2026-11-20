@@ -197,8 +197,10 @@ class SelectedUploadTests(unittest.TestCase):
 
         with patch.dict(
             os.environ,
-            {"TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED": "",
-             "TAIYOU_FOUR_TITLE_APPEND_ONLY_APPROVAL": ""},
+            {
+                "TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED": "",
+                "TAIYOU_FOUR_TITLE_APPEND_ONLY_APPROVAL": "",
+            },
         ):
             with self.assertRaisesRegex(ControllerError, "requires verified backup"):
                 selected_apply("maid-sama", self.root, self.root, self.root, "token", approve=True)
