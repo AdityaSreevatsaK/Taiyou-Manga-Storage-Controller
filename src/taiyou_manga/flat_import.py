@@ -144,13 +144,17 @@ def discover_flat(
     source: Path,
     series_title: str,
     limits: Limits = DEFAULT_LIMITS,
+    *,
+    manga_key: str | None = None,
 ) -> Iterator[ChapterSource]:
     """Yield a single chapter's raw pages at a time, sorted by numeric index."""
     safe_text(series_title, 180)
     inventory = inspect_flat(source, limits)
     # The registry key deliberately does not depend on the manga display title.
     # A moved source folder requires reviewed identity-migrate, as for normal imports.
-    source_key = "flat:" + source.resolve().as_posix()
+    if manga_key is not None and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,99}", manga_key):
+        raise ControllerError("Stable manga key must contain 1-100 letters, digits, dots, hyphens or underscores")
+    source_key = "flat:" + (manga_key if manga_key is not None else source.resolve().as_posix())
     if len(source_key) > 850:
         raise ControllerError("Flat manga source path exceeds stable identity registry limit")
     for chapter in inventory.chapters:
