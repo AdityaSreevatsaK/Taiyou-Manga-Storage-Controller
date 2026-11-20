@@ -1,12 +1,45 @@
-# Manga data contracts
+# Canonical Manga Hugging Face dataset contract (20 November 2026)
 
-Source reviewed: `Taiyous-Manga-Library/src/domain/types.ts`, `src/domain/validation.ts`, `docs/DATA_CONTRACTS.md` and proposed ADR-006 (18 November 2026). No production persistence design has been approved.
+The Manga Library application owns the public JSON shape and runtime parser. The Novel Storage Controller supplies naming, recovery and workflow conventions, but **its EPUB/book schema is not reused for manga**.
 
-- `MangaEntry`: `kind: "manga"`, `id` with `mng_` prefix, title, aliases, creators, tags, publicationStatus, direction and ordered chapter list. No personal rating or read progress is included in generated catalogues.
-- `MangaChapter`: `ch_` immutable ID, label, zero-based sequence, optional volume and page count.
-- `ChapterManifest`: `{schemaVersion:1, mediaKind:"manga", chapterId, pages}`. Every page is `pg_` ID, `assetPath`, MIME, width, height, byteSize and SHA-256. Assets use strict relative `manga/<series>/<chapter>/<page>.<ext>` paths, never remote URLs.
-- Progress stays in the Manga Library. It binds `chapterId`, zero-based `pageIndex` AND immutable `pageId`. Reordered/missing pages must be reconciled rather than silently advancing positions.
-- Source rights: optional private `rights.json` mirrors `SourceRights` v1, but a declaration is **not independent legal verification**. No remote write is authorised by its presence alone.
-- The private `inventory.json` object carries `controllerCandidateVersion:1` and counts/warnings. It is **not** a proposed production HF catalogue schema. The `ids.json` registry is private local configuration, not a browser contract.
+The canonical private dataset is `AdityaSreevatsaK/Taiyous-Manga`. The reader expects exactly:
 
-Treat incompatible future schema versions as errors. Any migration must include a signed-off source/target contract, dry-run inventory diff, verified full-media backup and recovery tests. Do not copy novel EPUB identifiers or personal data.
+```json
+{"schemaVersion": 1, "mediaKind": "manga", "entries": []}
+```
+
+Published at **`data/library.json`**. Each `entries` item is a validated `MangaEntry` with stable `mng_*` and `ch_*` IDs, user-visible metadata and ordered chapters. Progress, ratings, notes and other personal fields are separate from this catalogue.
+
+## Canonical files
+
+- `data/library.json`: JSON envelope with `schemaVersion:1`, `mediaKind:"manga"` and `entries`.
+- `data/manga/<manga-id>/<chapter-id>/<page-id>.<original-extension>`: original validated raster page bytes, not transcoded automatically.
+- `data/manifests/<chapter-id>.json`: validated `{schemaVersion:1,mediaKind:"manga",chapterId,pages}` records. Each page has immutable `pg_*` ID, size, dimensions, checksum and reader-validated **relative** `assetPath: "manga/<manga-id>/<chapter-id>/<page-id>.<ext>"`.
+- `data/covers/<manga-id>.webp`: planned cover management path, not required for the current ReLIFE migration.
+
+Manga may contain PNG, JPEG, WebP or AVIF source pages. Converting them all to WebP would modify originals and invalidate SHA-256 checksums; preserve their existing format and page IDs unless a **separate approved transformation** is tested.
+
+## Existing ReLIFE upload: legacy format
+
+The already complete ReLIFE upload exists under:
+- `catalogue.json`: old raw array (not the reader's envelope).
+- `manifests/<chapter-id>.json`: 237 chapter manifests.
+- `assets/manga/<manga-id>/<chapter-id>/<page-id>.<ext>`: 5,606 verified original pages.
+- `control/relife-identities.json`, `ingest/relife-v1/`: persistent metadata and checkpoints.
+
+**Do not delete, move or overwrite these legacy files.** The temporary read-only Manga Library fallback can display the old catalogue until a safe migration. It does not provide private media page delivery.
+
+## Required migration gates
+
+1. Read the private dataset at an immutable SHA and verify its ReLIFE entry, all 237 manifests and 5,606 legacy image paths.
+2. Pin the entire original tree as a private HF recovery branch; also make an independent full-media backup, not just a JSON catalogue copy.
+3. Test the source-to-destination copy plan on an isolated private staging dataset and validate its result using the reader's schema.
+4. Use only **append-only** copy operations with the expected-parent revision, preserving image bytes and original IDs. Publish `data/library.json` last. Never change `catalogue.json` or existing media paths.
+5. Confirm that the reader can access `data/library.json`, the chapter manifests and page objects using its authorised private gateway, with a rollback path verified.
+6. Only then authorise additional manga uploads, which must atomically merge `entries` without replacing other titles.
+
+The module `hf_layout.py` implements only the **read-only inventory, schema validation and deterministic preview**, not remote mutation. `hf_recovery.py` creates only a private, revision-pinned recovery reference, not an independent backup. No main-branch data migration is currently authorised.
+
+## Controller v1 local candidate is not the HF schema
+
+The builder's `catalogue.json`, `manifests/` and `assets/manga/` are a local intermediate **source bundle**. Nothing may upload these paths as-is to the private dataset. All future upload plans must transform the validated bundle to the canonical `data/` paths and envelope while keeping IDs immutable.
