@@ -82,10 +82,10 @@ def validate_entries(raw: object) -> list[dict[str, Any]]:
                 role_name = safe_text(role["name"], 120)
                 if role["role"] not in ("author", "artist"):
                     raise ControllerError("Unsupported creator role")
-                key = (role_name.casefold(), role["role"])
-                if key in seen_roles:
+                role_key = (role_name.casefold(), role["role"])
+                if role_key in seen_roles:
                     raise ControllerError("Duplicate creator role")
-                seen_roles.add(key)
+                seen_roles.add(role_key)
         cover = entry.get("cover")
         if cover is not None:
             from .metadata import cover_asset_path
