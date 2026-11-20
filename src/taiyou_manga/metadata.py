@@ -54,16 +54,20 @@ def _source(value: object) -> dict[str, str]:
     source_id = safe_text(value["sourceId"], 180)
     source_url = safe_text(value["sourceUrl"], 500)
     url = urlsplit(source_url)
-    if (
-        url.scheme != "https"
-        or not url.hostname
-        or "." not in url.hostname
-        or url.username
-        or url.password
-        or url.query
-        or url.fragment
-        or url.port not in (None, 443)
-    ):
+    try:
+        safe_host = bool(
+            url.scheme == "https"
+            and url.hostname
+            and "." in url.hostname
+            and not url.username
+            and not url.password
+            and not url.query
+            and not url.fragment
+            and url.port in (None, 443)
+        )
+    except ValueError as exc:
+        raise ControllerError("Malformed HTTPS source provenance") from exc
+    if not safe_host:
         raise ControllerError("Provenance must use a plain HTTPS reference, never a signed media URL")
     timestamp = safe_text(value["retrievedAt"], 40)
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", timestamp):
@@ -154,7 +158,13 @@ def _cover_file(root: Path, candidate: dict[str, Any], manga_id: str) -> tuple[d
     cover = candidate["metadata"]["cover"]
     relative = cover["file"]
     local = root / relative
-    if root.is_symlink() or local.is_symlink() or not local.is_file():
+    if (
+        root.is_symlink()
+        or local.parent.is_symlink()
+        or local.is_symlink()
+        or not local.resolve().is_relative_to(root.resolve())
+        or not local.is_file()
+    ):
         raise ControllerError("Cover candidate file is missing, a symlink or unsafe")
     data = read_limited(local, MAX_COVER_BYTES)
     checked = check_bytes(data, relative)
