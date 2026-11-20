@@ -1,15 +1,48 @@
-# Decisions and open approvals
+# Architecture and Operational Decisions
 
-- 2026-11-18: Public controller source, **private media only**; avoid committing media or metadata.
-- 2026-11-18: Python 3.11/3.12 + Pillow; no heavyweight frameworks; synthetic tests only in CI.
-- 2026-11-18: Use the Manga Library's current ChapterManifest v1 and opaque IDs. Keep controller-only candidate inventory separated from any final persisted schema.
-- 2026-11-18: ZIP/CBZ and folders supported as input candidates, not a promise of final source packaging.
-- 2026-11-18: Local mock writes permitted only with approval and exact revision. HF live write operations intentionally unimplemented. No data deletion/reset.
-- 2026-11-18: Full-media backup includes binaries, rights and metadata; catalogue backup must never be described as equivalent.
-- 2026-11-18: Mock revision fingerprints cover every validated page, chapter manifest, catalogue, inventory and rights declaration. Metadata modifications and missing records fail closed; no automatic metadata merge or rewrite. Existing local mocks created with the old digest format require a fresh disposable mock directory (not a production data migration).
+**Updated:** 20 November 2026. This is a **dated decision log**, not an authorisation to perform new private data mutations. Earlier design restrictions remain part of the history but are clearly marked when superseded.
 
-- 2026-11-18: Local identity registry updates are protected by an exclusive cross-process lock and an atomic temp-file replacement to avoid lost IDs and progress misalignment on concurrent imports. A failed publish may reserve unused IDs, which are safe to reuse on retry.
+| Date | Decision | Rationale / consequences |
+|---|---|---|
+| 18 November 2026 | Public Controller code, private manga assets and rights evidence | GitHub holds no original pages, covers, private exports, credentials or personal media |
+| 18 November 2026 | Python 3.11/3.12 with Pillow; Windows and Linux CI | Portable owner-friendly scripts, synthetic media-only test matrix |
+| 18 November 2026 | Manga Library v1 page and chapter ID contract | Stable opaque identities and private page assets, not an EPUB-shaped schema |
+| 18 November 2026 | Support ZIP/CBZ and folders as **input** only | Intermediate source bundle must be validated, never uploaded using legacy root paths |
+| 18 November 2026 | Identity registry locking and atomic replacement | Avoid concurrent lost identities; path moves require explicit previewed mapping |
+| 18 November 2026 | Local mock previews, no cloud writes at initial milestone | Establish safety and contract tests before private live integration |
+| 18 November 2026 | Full media backups differ from catalogue JSON backups | A catalogue-only copy cannot recover original pages |
+| 20 November 2026 | Owner authorised specifically scoped private ReLIFE upload | Validation, expected-parent writes and provenance required; **not** redistribution permission |
+| 20 November 2026 | Canonical private dataset at AdityaSreevatsaK/Taiyous-Manga | data/library.json schemaVersion 1, mediaKind manga; manifests and image assets under data/ |
+| 20 November 2026 | ReLIFE legacy root layout migrated to data/ and retained as recovery originals | Never use root catalogue.json for future publication; preserve existing IDs and media |
+| 20 November 2026 | Four additional selected manga uploaded and enriched alongside ReLIFE | All five source records received verified publication metadata and original covers under owner-requested private storage |
+| 20 November 2026 | Add optional cover, creatorRoles and metadataSources | Private original cover assets, author/artist roles, per-field source evidence; no token/signed URL in catalogue |
+| 20 November 2026 | Adopt Novel Controller-style management workflows for manga (PR #28) | 20-option menu for catalogue listing, bulk upload/download, conflict reports, integrity, backup, cover import, metadata and safe delist/restore; no EPUB schema reuse |
+| 20 November 2026 | Keep whole-dataset wipe disabled | One mistaken menu action must not erase the full private manga collection |
+| 20 November 2026 | Single-manga delete is reversible **catalogue de-list** | Original pages/manifests/covers preserved; pre-change catalogue backup and exact-title confirmation |
+| 20 November 2026 | Every future private write requires its own preview and explicit authorisation | A prior batch's approval cannot become a blanket permission to upload arbitrary chapters or purge media |
+| 20 November 2026 | Validate live private state with read-only protected workflow (PR #30) | Avoid claiming implementation success solely from synthetic tests, PR merge or partial workflow results |
+| 20 November 2026 | Consolidate current docs and AI operating instructions | Future sessions must not mistake obsolete migration-hold and offline-only notes for active requirements |
 
-Awaiting owner: exact source archive arrangement, stable series identity after moving files, private HF dataset name and creation, owner auth, source rights and quotas, cloud commit protocol, reader adapter, backup retention, automatic sync, deletion policy and live mutation gate. Proposed Manga Library ADR-006 is **not an approved architecture**.
+## Superseded restrictions
 
-- 2026-11-20: The owner confirmed permission to host the specific ReLIFE English scans privately on Hugging Face and approved upload to `AdityaSreevatsaK/Taiyous-Manga`. This permits only the dedicated, append-only ReLIFE workflow with deterministic IDs, expected-parent commits, verified source pages and last-commit publication. No other original media upload or deletion is authorised by this approval. The permission is owner-attested, not independently checked.
+The original 18 November statement that **all Hugging Face writes were unimplemented** was accurate then but is **superseded** by subsequent reviewed, scoped private workflows and general management code.
+
+The old 20 November **"no further uploads until ReLIFE canonical migration"** hold was a necessary safety gate during the migration. The migration and five-manga private data backfill were subsequently verified. That hold is **not a permanent ban**, though every new write still needs a fresh approved plan, validated source rights, revision guard and recovery strategy.
+
+The original "cover path planned as WebP" example is superseded by the actual optional cover descriptor accepting the verified **original** PNG/JPEG/WebP/AVIF extension. Do not normalise to one image format without an explicitly approved conversion project.
+
+Some older standalone migration write-ups intentionally retain their pre-migration warnings as historical procedure. Do not delete or rewrite their technical evidence; refer to the current [DATA_CONTRACTS.md](DATA_CONTRACTS.md) and [REPOSITORY_HANDBOOK.md](REPOSITORY_HANDBOOK.md) for operations today.
+
+## Decisions still requiring case-specific owner review
+
+- Approval, provenance, appropriate rights and source edition for **each new** manga or cover.
+- Staging and rollback requirements before new categories of real HF operations.
+- True permanent deletion, pruning legacy media or full-dataset cleanup (not implemented).
+- Storage schema changes, including reader-compatible cover/creator metadata expansion.
+- Private reader access or Cloudflare gateway changes (Manga Library repo).
+- Source acquisition and website support (Manga Retriever repo).
+- Data retention, independent full-media backup cadence and disaster recovery arrangements.
+
+The date of a decision does not provide current dataset status. Always read the latest private SHA before asserting that a title is present or an operation is safe.
+
+[AI Agent Playbook](AI_AGENT_PLAYBOOK.md) | [Repository Handbook](REPOSITORY_HANDBOOK.md)
