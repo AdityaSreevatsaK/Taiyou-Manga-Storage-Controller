@@ -1,0 +1,38 @@
+name: Migrate verified ReLIFE to canonical private Hugging Face
+
+on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/relife-canonical-migrate.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-manga-private-write
+  cancel-in-progress: false
+
+jobs:
+  migrate-relife:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: hf-manga-upload
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install protected private Hugging Face client
+        run: |
+          python -m pip install --upgrade "setuptools>=84.1.0"
+          python -m pip install -e ".[huggingface]"
+      - name: Verify recovery and copy to private staging and then main
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_DISABLE_TELEMETRY: '1'
+        run: python -m taiyou_manga.hf_canonical_migrate
+
+# All branches and media stay private. Copy-only, revision-guarded operations.
+# No original content is removed, and data/library.json is published last.
