@@ -37,9 +37,7 @@ def _save_verified_candidate(candidate: bytes, filename: str, folder: Path) -> P
         raise ControllerError("Symlinked repaired JPEG is not allowed")
     if destination.exists():
         if not destination.is_file() or sha256(destination.read_bytes()) != checked.checksum:
-            raise ControllerError(
-                f"Existing repaired JPEG changed: {filename}. Preserve it for review."
-            )
+            raise ControllerError(f"Existing repaired JPEG changed: {filename}. Preserve it for review.")
     else:
         with destination.open("xb") as handle:
             handle.write(candidate)
@@ -147,14 +145,16 @@ def inspect_and_prepare(
         except ControllerError as exc:
             recovered = _recover_jpeg(blob, file.name, work)
             repair_path = recovered[1] if recovered else None
-            issues.append({
-                "file": file.name,
-                "sourceSha256": sha256(blob),
-                "validationError": _reason(exc),
-                "repairMethod": recovered[0] if recovered else None,
-                "candidateFile": str(repair_path) if repair_path else None,
-                "candidateSha256": sha256(repair_path.read_bytes()) if repair_path else None,
-            })
+            issues.append(
+                {
+                    "file": file.name,
+                    "sourceSha256": sha256(blob),
+                    "validationError": _reason(exc),
+                    "repairMethod": recovered[0] if recovered else None,
+                    "candidateFile": str(repair_path) if repair_path else None,
+                    "candidateSha256": sha256(repair_path.read_bytes()) if repair_path else None,
+                }
+            )
             if repair_path:
                 expected[file.name] = repair_path
 

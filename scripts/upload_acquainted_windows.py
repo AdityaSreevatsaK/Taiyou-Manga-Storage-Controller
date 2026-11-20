@@ -370,9 +370,7 @@ def main() -> int:
     else:
         from acquainted_image_repair import inspect_and_prepare
 
-    selected_pages = inspect_and_prepare(
-        pages, work, use_reviewed_repairs=args.use_reviewed_repairs
-    )
+    selected_pages = inspect_and_prepare(pages, work, use_reviewed_repairs=args.use_reviewed_repairs)
     rights = source_rights(work, NAME, args.rights_json)
 
     from taiyou_manga.builder import build, load_json, verify_bundle
