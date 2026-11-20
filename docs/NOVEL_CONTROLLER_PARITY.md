@@ -150,3 +150,14 @@ No page is reuploaded and no personal reading data is changed.
 - Original pages and private images must never be committed to this public code repository.
 - Owner-authenticated private dataset and revision preconditions are mandatory.
 - The developer tests are fully synthetic; they do not require private HF tokens.
+
+
+## Option 21: Flat numbered manga images
+
+The Windows menu now also includes **21. Import flat chapter_page JPG/PNG manga**.
+It previews files named `1_0.jpg`, `1_1.jpg`, `2_0.jpg`, etc., builds
+the existing original-byte verified manga bundle, and optionally prepares
+the guarded private HF upload with explicit approval. For commands and
+constraints, see [Import formats](IMPORT_FORMATS.md#flat-numbered-chapter_page-image-import).
+For the reader-side specification, see
+[Manga Library integration note](LIBRARY_FLAT_CHAPTER_IMPORT_CONTRACT.md).
