@@ -1,0 +1,32 @@
+name: Format owner-approved manga upload feature branch (temporary)
+on:
+  push:
+    branches: [feat/owner-approved-four-manga-upload-20261120]
+    paths: ['.github/workflows/format-owner-upload.yml']
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/owner-approved-four-manga-upload-20261120
+          persist-credentials: true
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'ruff>=0.9,<1'
+      - name: Format and safely fix lint
+        run: |
+          python -m ruff format src/taiyou_manga/selected_hf_upload.py tests/test_selected_hf_upload.py
+          python -m ruff check --fix src/taiyou_manga/selected_hf_upload.py tests/test_selected_hf_upload.py
+      - name: Commit formatting only
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -- src/taiyou_manga/selected_hf_upload.py tests/test_selected_hf_upload.py
+            git commit -m "style: format authorised manga uploader"
+            git push origin HEAD:feat/owner-approved-four-manga-upload-20261120
+          fi
