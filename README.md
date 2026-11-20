@@ -63,7 +63,7 @@ The synthetic generator creates **two original fictional series, four chapters a
 | Verified full-media backups, read-only restore preview, new-folder restoration | Implemented |
 | Read-only private HF dataset health | Optional; requires `pip install -e ".[huggingface]"` and an explicit repo ID |
 | Private ReLIFE HF upload | **Approved; revision-guarded workflow with resumable commits** |
-| Other HF uploads, private cloud reader, account creation, sync, destructive commands | **Disabled / not implemented** |
+| General HF manga bulk upload, catalogue/list/status, downloads, sync and safe de-list | **Implemented with preview, source rights and revision guards**; see [operations](docs/NOVEL_CONTROLLER_PARITY.md) |
 
 **CSV exports contain private series and chapter titles.** They use a new-file-only destination, spreadsheet formula escaping and a Git-ignore rule, but should never be committed or shared publicly. The Windows menu also offers CSV export.
 
