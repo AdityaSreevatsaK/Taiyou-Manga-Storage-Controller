@@ -114,13 +114,16 @@ def _batches(mapping: dict[str, str]) -> list[list[tuple[str, str]]]:
 def _marker(phase: str, index: int, batch: list[tuple[str, str]]) -> tuple[str, bytes]:
     if phase not in ("staging", "production") or index < 1 or not batch:
         raise ControllerError("Unsupported private migration marker")
-    digest = _sha256(
-        b"".join(source.encode() + b"\0" + target.encode() + b"\n" for source, target in batch)
-    )
+    digest = _sha256(b"".join(source.encode() + b"\0" + target.encode() + b"\n" for source, target in batch))
     path = f"{MARKER_PREFIX}/{phase}/batch-{index:03}.json"
     data = _json_bytes(
-        {"schemaVersion": 1, "sourceRevision": SOURCE_SHA, "part": index,
-         "count": len(batch), "copyMapSha256": digest}
+        {
+            "schemaVersion": 1,
+            "sourceRevision": SOURCE_SHA,
+            "part": index,
+            "count": len(batch),
+            "copyMapSha256": digest,
+        }
     )
     return path, data
 
@@ -139,8 +142,7 @@ def _metadata(api: Any, revision: str, requested: set[str], token: str) -> dict[
     # downloading the original 1.34 GB of images to GitHub Actions.
     data: dict[str, Any] = {}
     for item in api.list_repo_tree(
-        DATASET, repo_type="dataset", revision=revision,
-        recursive=True, expand=False, token=token
+        DATASET, repo_type="dataset", revision=revision, recursive=True, expand=False, token=token
     ):
         path = getattr(item, "path", None)
         if path in requested and hasattr(item, "blob_id"):
@@ -159,17 +161,20 @@ def _identity(item: Any) -> tuple[int, str, str]:
     return size, blob_id, str(lfs_sha or "")
 
 
-def _verify_content_identities(
-    api: Any, revision: str, mapping: dict[str, str], token: str
-) -> None:
+def _verify_content_identities(api: Any, revision: str, mapping: dict[str, str], token: str) -> None:
     before = _metadata(api, SOURCE_SHA, set(mapping), token)
     after = _metadata(api, revision, set(mapping.values()), token)
     for original, copied in mapping.items():
         if _identity(before[original]) != _identity(after[copied]):
             raise ControllerError("Copied image or manifest content identity differs from original")
     print(
-        json.dumps({"verification": "identical-original-and-copy-metadata",
-                    "revision": revision, "verifiedFiles": len(mapping)}),
+        json.dumps(
+            {
+                "verification": "identical-original-and-copy-metadata",
+                "revision": revision,
+                "verifiedFiles": len(mapping),
+            }
+        ),
         flush=True,
     )
 
@@ -181,15 +186,18 @@ def _create_staging_branch(api: Any, token: str) -> None:
         raise ControllerError("Ambiguous private staging revision")
     if not existing:
         api.create_branch(
-            repo_id=DATASET, repo_type="dataset", branch=STAGING_BRANCH,
-            revision=SOURCE_SHA, token=token, exist_ok=False
+            repo_id=DATASET,
+            repo_type="dataset",
+            branch=STAGING_BRANCH,
+            revision=SOURCE_SHA,
+            token=token,
+            exist_ok=False,
         )
         print("Created isolated private migration staging branch", flush=True)
 
 
 def _copy_phase(
-    api: Any, token: str, phase: str, branch: str,
-    mapping: dict[str, str], catalogue: bytes
+    api: Any, token: str, phase: str, branch: str, mapping: dict[str, str], catalogue: bytes
 ) -> str:
     from huggingface_hub import CommitOperationAdd, CommitOperationCopy
 
@@ -211,16 +219,19 @@ def _copy_phase(
         if _private_revision(api, branch, token) != sha:
             raise ControllerError("Private dataset branch changed unexpectedly during migration")
         ops = [
-            CommitOperationCopy(
-                src_path_in_repo=src, path_in_repo=dst, src_revision=SOURCE_SHA
-            )
+            CommitOperationCopy(src_path_in_repo=src, path_in_repo=dst, src_revision=SOURCE_SHA)
             for src, dst in batch
         ]
         ops.append(CommitOperationAdd(path_in_repo=marker_path, path_or_fileobj=marker_content))
         api.create_commit(
-            repo_id=DATASET, repo_type="dataset", revision=branch, token=token,
-            parent_commit=sha, operations=ops, num_threads=5,
-            commit_message=f"Canonical ReLIFE {phase} copy {idx}/{len(batches)}"
+            repo_id=DATASET,
+            repo_type="dataset",
+            revision=branch,
+            token=token,
+            parent_commit=sha,
+            operations=ops,
+            num_threads=5,
+            commit_message=f"Canonical ReLIFE {phase} copy {idx}/{len(batches)}",
         )
         next_sha = _private_revision(api, branch, token)
         if next_sha == sha:
@@ -229,8 +240,15 @@ def _copy_phase(
         paths.update(targets)
         paths.add(marker_path)
         print(
-            json.dumps({"phase": phase, "batchesDone": idx, "batchesTotal": len(batches),
-                        "copiedFiles": len(targets)}), flush=True
+            json.dumps(
+                {
+                    "phase": phase,
+                    "batchesDone": idx,
+                    "batchesTotal": len(batches),
+                    "copiedFiles": len(targets),
+                }
+            ),
+            flush=True,
         )
 
     if not set(mapping.values()).issubset(paths):
@@ -243,11 +261,13 @@ def _copy_phase(
         if _private_revision(api, branch, token) != sha:
             raise ControllerError("Private dataset changed before canonical library publication")
         api.create_commit(
-            repo_id=DATASET, repo_type="dataset", revision=branch, token=token,
-            parent_commit=sha, operations=[
-                CommitOperationAdd(path_in_repo=CANONICAL_CATALOGUE, path_or_fileobj=catalogue)
-            ],
-            commit_message=f"Publish verified ReLIFE canonical library ({phase})"
+            repo_id=DATASET,
+            repo_type="dataset",
+            revision=branch,
+            token=token,
+            parent_commit=sha,
+            operations=[CommitOperationAdd(path_in_repo=CANONICAL_CATALOGUE, path_or_fileobj=catalogue)],
+            commit_message=f"Publish verified ReLIFE canonical library ({phase})",
         )
         sha = _private_revision(api, branch, token)
         if _download_small_file(CANONICAL_CATALOGUE, sha, token) != catalogue:
@@ -257,9 +277,19 @@ def _copy_phase(
         raise ControllerError("Legacy original paths are missing after migration")
     if not set(mapping.values()).issubset(final_paths):
         raise ControllerError("Canonical copied paths are missing after migration")
-    print(json.dumps({"phase": phase, "status": "complete",
-                      "revision": sha, "pages": EXPECTED_PAGES,
-                      "manifests": EXPECTED_CHAPTERS, "legacyPreserved": True}), flush=True)
+    print(
+        json.dumps(
+            {
+                "phase": phase,
+                "status": "complete",
+                "revision": sha,
+                "pages": EXPECTED_PAGES,
+                "manifests": EXPECTED_CHAPTERS,
+                "legacyPreserved": True,
+            }
+        ),
+        flush=True,
+    )
     return sha
 
 
@@ -275,10 +305,16 @@ def migrate(token: str) -> dict[str, object]:
     # The user explicitly authorised an append-only production migration.
     # No existing media, catalogue, control files or snapshots are deleted.
     production_sha = _copy_phase(api, token, "production", "main", mapping, catalogue)
-    return {"status": "canonical-migration-complete", "private": True,
-            "recoveryRevision": SOURCE_SHA, "stagingRevision": staging_sha,
-            "productionRevision": production_sha, "originalFilesPreserved": EXPECTED_FILES,
-            "canonicalFilesVerified": EXPECTED_FILES + 1, "mainModified": True}
+    return {
+        "status": "canonical-migration-complete",
+        "private": True,
+        "recoveryRevision": SOURCE_SHA,
+        "stagingRevision": staging_sha,
+        "productionRevision": production_sha,
+        "originalFilesPreserved": EXPECTED_FILES,
+        "canonicalFilesVerified": EXPECTED_FILES + 1,
+        "mainModified": True,
+    }
 
 
 def main() -> int:

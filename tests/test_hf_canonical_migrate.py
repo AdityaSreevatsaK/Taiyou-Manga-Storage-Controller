@@ -45,8 +45,10 @@ class CanonicalMigrationTests(unittest.TestCase):
             _marker("unknown", 1, batches[0])
 
     def test_batches_are_bounded_without_losing_files(self) -> None:
-        paths = {f"assets/manga/a/file_{index:05d}.png": f"data/manga/a/file_{index:05d}.png"
-                 for index in range(EXPECTED_FILES)}
+        paths = {
+            f"assets/manga/a/file_{index:05d}.png": f"data/manga/a/file_{index:05d}.png"
+            for index in range(EXPECTED_FILES)
+        }
         batches = _batches(paths)
         self.assertEqual(sum(len(batch) for batch in batches), EXPECTED_FILES)
         self.assertTrue(all(0 < len(batch) <= BATCH_SIZE for batch in batches))
