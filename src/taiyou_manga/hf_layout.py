@@ -64,6 +64,43 @@ def validate_entries(raw: object) -> list[dict[str, Any]]:
                 raise ControllerError("Missing or excessive manga metadata values")
             if not all(isinstance(x, str) and 0 < len(x.strip()) <= 120 for x in values):
                 raise ControllerError("Invalid manga metadata text")
+        synopsis = entry.get("synopsis")
+        if synopsis is not None:
+            from .domain import safe_text
+
+            safe_text(synopsis, 2000)
+        roles = entry.get("creatorRoles")
+        if roles is not None:
+            if not isinstance(roles, list) or len(roles) > 24:
+                raise ControllerError("Invalid manga author and artist roles")
+            seen_roles: set[tuple[str, str]] = set()
+            for role in roles:
+                if not isinstance(role, dict) or set(role) != {"name", "role"}:
+                    raise ControllerError("Invalid creator role object")
+                from .domain import safe_text
+
+                role_name = safe_text(role["name"], 120)
+                if role["role"] not in ("author", "artist"):
+                    raise ControllerError("Unsupported creator role")
+                key = (role_name.casefold(), role["role"])
+                if key in seen_roles:
+                    raise ControllerError("Duplicate creator role")
+                seen_roles.add(key)
+        cover = entry.get("cover")
+        if cover is not None:
+            from .metadata import cover_asset_path
+
+            cover_asset_path(cover, sid)
+        origins = entry.get("metadataSources")
+        if origins is not None:
+            from .metadata import FIELDS, _source
+
+            if not isinstance(origins, dict) or set(origins) - set(FIELDS):
+                raise ControllerError("Unexpected or malformed metadata provenance")
+            for field, source in origins.items():
+                if field not in entry:
+                    raise ControllerError("Source provenance refers to missing manga metadata")
+                _source(source)
         chapters = entry.get("chapters")
         if not isinstance(chapters, list) or len(chapters) > MAX_CHAPTERS_PER_SERIES:
             raise ControllerError("Manga chapters must be a bounded array")
