@@ -334,6 +334,11 @@ def main() -> int:
         help="Use explicitly inspected, visually approved local JPEG repair copies",
     )
     parser.add_argument(
+        "--refresh-source-images",
+        action="store_true",
+        help="Archive previous local extracted pages and bundle after repairing the source ZIP",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true", help="Build locally and preview, but do not write HF"
     )
     args = parser.parse_args()
@@ -349,6 +354,15 @@ def main() -> int:
     print(f"Private target: {DATASET}")
     work = root / ".acquainted-private-import"
     work.mkdir(parents=True, exist_ok=True)
+    if args.refresh_source_images:
+        for directory in ("pages", "validated-pages", "bundle"):
+            previous = work / directory
+            if previous.exists() or previous.is_symlink():
+                if previous.is_symlink() or not previous.is_dir():
+                    fail(f"Invalid existing private import directory: {previous}")
+                backup = work / f"previous-{directory}-{uuid.uuid4().hex[:12]}"
+                previous.rename(backup)
+                print(f"Preserved prior {directory} at {backup}", flush=True)
     pages = work / "pages"
     total_pages = extract_pages(images_zip, pages)
     if __package__:
