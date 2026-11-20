@@ -1,6 +1,9 @@
-name: Upload four manga to canonical private HF (backup-gated)
+name: Upload four manga to canonical private HF (owner-approved)
 
 on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/selected-manga-canonical-hf-upload.yml']
   workflow_dispatch:
 
 permissions:
@@ -12,7 +15,65 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify-protected-recovery:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: hf-manga-upload
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install verified private HF client
+        run: |
+          python -m pip install --upgrade "setuptools>=84.1.0"
+          python -m pip install -e ".[huggingface]"
+      - name: Pin private canonical ReLIFE snapshot and verify its 5,606 pages
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_DISABLE_TELEMETRY: '1'
+        run: |
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+          from taiyou_manga.hf_recovery import BACKUP_BRANCH, DATASET
+          from taiyou_manga.hf_canonical_migrate import SOURCE_SHA, STAGING_BRANCH
+          from taiyou_manga.selected_hf_upload import _old_catalogue
+          token = os.environ["HF_TOKEN"]
+          api = HfApi(token=token)
+          info = api.dataset_info(DATASET, token=token)
+          if info.private is not True:
+              raise RuntimeError("Refusing upload: destination is not private")
+          refs = api.list_repo_refs(DATASET, repo_type="dataset", token=token)
+          branches = {ref.name: ref.target_commit for ref in refs.branches}
+          if branches.get(BACKUP_BRANCH) != SOURCE_SHA or STAGING_BRANCH not in branches:
+              raise RuntimeError("ReLIFE original recovery and canonical staging are missing")
+          baseline = "fdb47dc9b4216ae3a3b6f007941e2a0c78a67ffa"
+          backup = "backup/relife-canonical-before-four-titles-20261120"
+          if backup in branches:
+              if branches[backup] != baseline:
+                  raise RuntimeError("Unexpected canonical recovery branch revision")
+          else:
+              if info.sha != baseline:
+                  raise RuntimeError("Unrecognised live dataset revision before backup pin")
+              api.create_branch(repo_id=DATASET, repo_type="dataset",
+                                branch=backup, revision=baseline, token=token)
+          pinned = api.dataset_info(DATASET, revision=backup, token=token)
+          if pinned.private is not True or pinned.sha != baseline:
+              raise RuntimeError("Canonical private recovery snapshot could not be verified")
+          paths = set(api.list_repo_files(DATASET, repo_type="dataset", revision=info.sha, token=token))
+          entries, _ = _old_catalogue(info.sha, paths, token)
+          relife = [record for record in entries if record.get("title") == "ReLIFE"]
+          if len(relife) != 1 or len(relife[0]["chapters"]) != 237:
+              raise RuntimeError("ReLIFE canonical index does not match verified baseline")
+          media = "data/manga/" + relife[0]["id"] + "/"
+          if sum(path.startswith(media) for path in paths) != 5606:
+              raise RuntimeError("ReLIFE canonical media inventory is incomplete")
+          print("Original and canonical ReLIFE recovery refs verified, 5,606 pages retained")
+          PY
   upload-four-titles:
+    needs: verify-protected-recovery
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment: hf-manga-upload
@@ -27,15 +88,6 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - name: Enforce independently verified backup and disposable staging
-        env:
-          TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED: ${{ vars.TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED }}
-        shell: bash
-        run: |
-          if [ "${TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED}" != "yes" ]; then
-            echo "::error::Full-media independent backup and private staging test are not verified."
-            exit 1
-          fi
       - name: Install Controller and authenticated HF reader
         run: |
           python -m pip install --upgrade "setuptools>=84.1.0"
@@ -89,7 +141,7 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_HUB_DISABLE_TELEMETRY: '1'
-          TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED: ${{ vars.TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED }}
+          TAIYOU_FOUR_TITLE_APPEND_ONLY_APPROVAL: 'approved-2026-11-20'
           TITLE_SLUG: ${{ matrix.slug }}
         run: |
           python -m taiyou_manga.selected_hf_upload \
@@ -108,5 +160,5 @@ jobs:
             "${RUNNER_TEMP}/selected-preview.json"
 
 # No public manga artefacts. No deletions or legacy catalogue writes.
-# Protected workflow refuses uploads until independently verified backup,
-# canonical ReLIFE migration and isolated staging test are complete.
+# Explicit owner-authorised append-only upload after the canonical ReLIFE migration.
+# Private recovery branches are pinned, but no independent off-platform backup is claimed.

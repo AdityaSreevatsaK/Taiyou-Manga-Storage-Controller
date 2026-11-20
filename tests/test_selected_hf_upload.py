@@ -119,8 +119,8 @@ class SelectedUploadTests(unittest.TestCase):
     def test_appends_without_changing_existing_relife_entry(self) -> None:
         import os
 
-        self.addCleanup(lambda: os.environ.pop("TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED", None))
-        os.environ["TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED"] = "yes"
+        self.addCleanup(lambda: os.environ.pop("TAIYOU_FOUR_TITLE_APPEND_ONLY_APPROVAL", None))
+        os.environ["TAIYOU_FOUR_TITLE_APPEND_ONLY_APPROVAL"] = "approved-2026-11-20"
         with (
             patch.dict(TITLES, {self.title.slug: self.title}),
             patch.dict(sys.modules, {"huggingface_hub": self.fake}),
@@ -189,6 +189,21 @@ class SelectedUploadTests(unittest.TestCase):
         with patch.dict(sys.modules, {"huggingface_hub": self.fake}):
             with self.assertRaisesRegex(UploadConflict, "already exists"):
                 inspect_selected(self.api, "test", self.title, self.media, self.metadata, self.entry)
+
+    def test_unapproved_live_write_is_blocked(self) -> None:
+        import os
+
+        from taiyou_manga.domain import ControllerError
+
+        with patch.dict(
+            os.environ,
+            {
+                "TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED": "",
+                "TAIYOU_FOUR_TITLE_APPEND_ONLY_APPROVAL": "",
+            },
+        ):
+            with self.assertRaisesRegex(ControllerError, "requires verified backup"):
+                selected_apply("maid-sama", self.root, self.root, self.root, "token", approve=True)
 
     def test_private_upload_requires_attested_approval(self) -> None:
         with self.assertRaisesRegex(Exception, "approved"):
