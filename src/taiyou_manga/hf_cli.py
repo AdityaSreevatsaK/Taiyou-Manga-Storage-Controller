@@ -76,6 +76,11 @@ def parser() -> argparse.ArgumentParser:
     delete.add_argument("--apply", action="store_true")
     delete.add_argument("--approve", action="store_true")
     delete.add_argument("--confirm-title", default="")
+    cover_upload = subs.add_parser("upload-covers", help="Preview or apply private manga cover ZIP")
+    cover_upload.add_argument("--zip", required=True, type=_path)
+    cover_upload.add_argument("--plan-file", required=True, type=_path)
+    cover_upload.add_argument("--apply", action="store_true")
+    cover_upload.add_argument("--approve", action="store_true")
     covers = subs.add_parser("covers", help="Report missing or present verified private covers")
     covers.add_argument("--output", required=True, type=_path)
     chapters = subs.add_parser("chapters", help="Export all manga chapters as CSV")
@@ -137,6 +142,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             ["normalisedTitle", "mangaIds", "count"],
         )
         return {"status": "conflicts-report", "revision": sha, "pairs": len(rows), "report": str(args.output)}
+    if cmd == "upload-covers":
+        from .hf_cover_zip import cover_zip_upload
+
+        if args.apply and not args.approve:
+            raise ControllerError("Cover ZIP upload requires both --apply and --approve")
+        return cover_zip_upload(token, args.zip, args.plan_file, approve=args.apply and args.approve)
     if cmd in ("verify", "health", "covers"):
         return export_report(token, args.output, depth="quick" if cmd == "covers" else args.mode)
     if cmd == "sync":
@@ -316,11 +327,16 @@ def interactive_menu() -> None:
                         ]
                     )
             elif choice == "10":
-                source = ask("Private candidate metadata.json (covers beside it)")
+                source = ask("Private cover ZIP, or candidate metadata.json")
                 plan = ask("NEW metadata and cover preview JSON path")
-                invoke(["metadata", "--candidates", source, "--plan-file", plan])
+                command = (
+                    ["upload-covers", "--zip", source, "--plan-file", plan]
+                    if source.lower().endswith(".zip")
+                    else ["metadata", "--candidates", source, "--plan-file", plan]
+                )
+                invoke(command)
                 if ask("After reviewing preview, type APPROVE") == "APPROVE":
-                    invoke(["metadata", "--candidates", source, "--plan-file", plan, "--apply", "--approve"])
+                    invoke([*command, "--apply", "--approve"])
             elif choice == "11":
                 print("Whole-dataset deletion is disabled. Use reversible single-manga de-list instead.")
             elif choice == "12":
