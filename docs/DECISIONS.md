@@ -11,3 +11,5 @@
 - 2026-11-18: Local identity registry updates are protected by an exclusive cross-process lock and an atomic temp-file replacement to avoid lost IDs and progress misalignment on concurrent imports. A failed publish may reserve unused IDs, which are safe to reuse on retry.
 
 Awaiting owner: exact source archive arrangement, stable series identity after moving files, private HF dataset name and creation, owner auth, source rights and quotas, cloud commit protocol, reader adapter, backup retention, automatic sync, deletion policy and live mutation gate. Proposed Manga Library ADR-006 is **not an approved architecture**.
+
+- 2026-11-20: The owner confirmed permission to host the specific ReLIFE English scans privately on Hugging Face and approved upload to `AdityaSreevatsaK/Taiyous-Manga`. This permits only the dedicated, append-only ReLIFE workflow with deterministic IDs, expected-parent commits, verified source pages and last-commit publication. No other original media upload or deletion is authorised by this approval. The permission is owner-attested, not independently checked.
