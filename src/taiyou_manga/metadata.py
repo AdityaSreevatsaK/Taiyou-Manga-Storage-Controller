@@ -44,9 +44,7 @@ def _text_list(values: object, maximum: int) -> list[str]:
 
 
 def _source(value: object) -> dict[str, str]:
-    if not isinstance(value, dict) or set(value) != {
-        "provider", "sourceId", "sourceUrl", "retrievedAt"
-    }:
+    if not isinstance(value, dict) or set(value) != {"provider", "sourceId", "sourceUrl", "retrievedAt"}:
         raise ControllerError("Source provenance is mandatory for each metadata candidate")
     provider = safe_text(value["provider"], 60)
     if re.fullmatch(r"[A-Za-z0-9_-]{2,60}", provider) is None:
@@ -137,9 +135,7 @@ def validate_candidates(raw: object) -> list[dict[str, Any]]:
                 metadata["creators"] = list(dict.fromkeys(row["name"] for row in resolved))
         if "cover" in fields:
             cover = fields["cover"]
-            if not isinstance(cover, dict) or set(cover) != {
-                "file", "rightsEvidence", "attribution"
-            }:
+            if not isinstance(cover, dict) or set(cover) != {"file", "rightsEvidence", "attribution"}:
                 raise ControllerError("Cover requires file, permission evidence and attribution")
             relative = safe_text(cover["file"], 140)
             if not COVER_INPUT.fullmatch(relative):
@@ -182,7 +178,12 @@ def _cover_file(root: Path, candidate: dict[str, Any], manga_id: str) -> tuple[d
 
 def cover_asset_path(cover: object, manga_id: str) -> str:
     if not isinstance(cover, dict) or set(cover) != {
-        "assetPath", "mimeType", "width", "height", "byteSize", "sha256"
+        "assetPath",
+        "mimeType",
+        "width",
+        "height",
+        "byteSize",
+        "sha256",
     }:
         raise ControllerError("Malformed canonical manga cover descriptor")
     asset = cover.get("assetPath")
@@ -213,10 +214,7 @@ def cover_asset_path(cover: object, manga_id: str) -> str:
 def completeness(entries: list[dict[str, Any]]) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     for item in entries:
-        missing = [
-            name for name in ("cover", "creators", "synopsis", "tags")
-            if not item.get(name)
-        ]
+        missing = [name for name in ("cover", "creators", "synopsis", "tags") if not item.get(name)]
         if item.get("publicationStatus") == "unknown":
             missing.append("publicationStatus")
         rows.append({"id": item["id"], "title": item["title"], "missing": missing})
@@ -249,13 +247,12 @@ def reconcile(
         if series_id is None:
             title = candidate["title"].casefold()
             matches = [
-                row for row in result
+                row
+                for row in result
                 if title in {row["title"].casefold(), *(s.casefold() for s in row["aliases"])}
             ]
             label = candidate["title"]
-            conflicts.append(
-                f"{label}: title-only match requires manual ID review ({len(matches)} possible)"
-            )
+            conflicts.append(f"{label}: title-only match requires manual ID review ({len(matches)} possible)")
             continue
         row = by_id.get(series_id)
         if row is None:

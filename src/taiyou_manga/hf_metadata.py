@@ -83,9 +83,7 @@ def _planned(
     candidates_file: Path,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Path], dict[str, bytes]]:
     candidates, candidate_digest = load_candidates(candidates_file)
-    result, uploads, changes, conflicts = reconcile(
-        entries, candidates, candidates_file.parent, paths
-    )
+    result, uploads, changes, conflicts = reconcile(entries, candidates, candidates_file.parent, paths)
     dest = canonical_library(result)
     upload_details: list[dict[str, object]] = []
     rights_records: dict[str, bytes] = {}
@@ -95,18 +93,12 @@ def _planned(
         if not manga_id or not cover:
             continue
         asset = next(
-            (
-                (path, item)
-                for path, item in uploads.items()
-                if path.startswith(f"data/covers/{manga_id}.")
-            ),
+            ((path, item) for path, item in uploads.items() if path.startswith(f"data/covers/{manga_id}.")),
             None,
         )
         if asset is None:
             continue
-        descriptor = next(
-            entry["cover"] for entry in result if entry["id"] == manga_id
-        )
+        descriptor = next(entry["cover"] for entry in result if entry["id"] == manga_id)
         record = {
             "schemaVersion": 1,
             "mangaId": manga_id,
@@ -115,9 +107,7 @@ def _planned(
             "rightsEvidence": cover["rightsEvidence"],
             "attribution": cover["attribution"],
         }
-        rights_path = (
-            f"control/cover-rights/{manga_id}/{descriptor['sha256']}.json"
-        )
+        rights_path = f"control/cover-rights/{manga_id}/{descriptor['sha256']}.json"
         if rights_path in rights_records or rights_path in paths:
             conflicts.append(f"{manga_id}: cover rights record already exists")
         rights_records[rights_path] = encoded(record)
@@ -160,8 +150,7 @@ def _planned(
         "conflicts": conflicts,
         "coverUploads": upload_details,
         "coverRights": [
-            {"path": path, "sha256": _sha(contents)}
-            for path, contents in sorted(rights_records.items())
+            {"path": path, "sha256": _sha(contents)} for path, contents in sorted(rights_records.items())
         ],
         "before": completeness(entries),
         "after": completeness(result),
@@ -195,9 +184,7 @@ def apply(
         raise ControllerError("Metadata approval preview exceeds size limit")
     approved = json.loads(approval_bytes)
     sha, paths, old_bytes, entries = _snapshot(api, token)
-    plan, merged, covers, rights_records = _planned(
-        sha, paths, old_bytes, entries, candidates_file
-    )
+    plan, merged, covers, rights_records = _planned(sha, paths, old_bytes, entries, candidates_file)
     if plan != approved:
         raise UploadConflict("Dataset, candidates, or preview changed; approval is stale")
     if plan["status"] == "conflict":

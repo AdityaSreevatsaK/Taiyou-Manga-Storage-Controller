@@ -170,9 +170,7 @@ class MetadataTests(unittest.TestCase):
         self.assertRegex(conflicts[0], "title-only match")
         raw = candidate()
         raw["candidates"][0]["title"] = "Wrong manga"
-        _, _, _, conflicts = reconcile(
-            [self.original], validate_candidates(raw), self.root, set()
-        )
+        _, _, _, conflicts = reconcile([self.original], validate_candidates(raw), self.root, set())
         self.assertIn("mismatched", conflicts[0])
 
     def test_cover_checked_without_transcoding_or_traversal(self) -> None:
@@ -230,7 +228,9 @@ class MetadataTests(unittest.TestCase):
             self.assertEqual(len(remote.commits), 1)
             self.assertEqual(len(remote.commits[0]), 2)
             self.assertNotIn("data/manifests/ch_bbbbbbbbbbbb.json", remote.commits[0])
-            self.assertNotIn("data/manga/mng_aaaaaaaaaaaa/ch_bbbbbbbbbbbb/pg_cccccccccccc.webp", remote.commits[0])
+            self.assertNotIn(
+                "data/manga/mng_aaaaaaaaaaaa/ch_bbbbbbbbbbbb/pg_cccccccccccc.webp", remote.commits[0]
+            )
             with self.assertRaisesRegex(ControllerError, "stale"):
                 apply(remote, "synthetic-token", self.document, approval, approve=True)
 
