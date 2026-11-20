@@ -1,0 +1,88 @@
+name: Upload four selected manga to private Hugging Face
+
+on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/selected-manga-private-hf-upload.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: hf-manga-private-write
+  cancel-in-progress: false
+
+jobs:
+  upload-selected-manga:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    environment: hf-manga-upload
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        slug: [maid-sama, last-game, love-so-life, onizuka-sawarida]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install Controller and private HF client
+        run: |
+          python -m pip install --upgrade "setuptools>=84.1.0"
+          python -m pip install -e ".[huggingface]"
+      - name: Fetch only this title's verified original-quality GitHub artefacts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TITLE_SLUG: ${{ matrix.slug }}
+        run: |
+          python scripts/fetch_selected_manga_artifacts.py \
+            --slug "${TITLE_SLUG}" \
+            --output "${RUNNER_TEMP}/selected-source-zips"
+      - name: Verify source chapters and stage deterministic candidate
+        env:
+          TITLE_SLUG: ${{ matrix.slug }}
+        run: |
+          python -m taiyou_manga.selected_stage \
+            --slug "${TITLE_SLUG}" \
+            --artifact-dir "${RUNNER_TEMP}/selected-source-zips" \
+            --output "${RUNNER_TEMP}/selected-candidate" \
+            --registry "${RUNNER_TEMP}/selected-ids.json"
+          python -m taiyou_manga verify --bundle "${RUNNER_TEMP}/selected-candidate"
+      - name: Preview revision-guarded HF merge without remote writes
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_DISABLE_TELEMETRY: '1'
+          TITLE_SLUG: ${{ matrix.slug }}
+        run: |
+          python -m taiyou_manga.selected_hf_upload \
+            --slug "${TITLE_SLUG}" \
+            --bundle "${RUNNER_TEMP}/selected-candidate" \
+            --registry "${RUNNER_TEMP}/selected-ids.json" \
+            --plan-file "${RUNNER_TEMP}/selected-hf-plan.json"
+      - name: Upload original media, then atomically merge catalogue
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_DISABLE_TELEMETRY: '1'
+          TITLE_SLUG: ${{ matrix.slug }}
+        run: |
+          python -m taiyou_manga.selected_hf_upload \
+            --slug "${TITLE_SLUG}" \
+            --bundle "${RUNNER_TEMP}/selected-candidate" \
+            --registry "${RUNNER_TEMP}/selected-ids.json" \
+            --plan-file "${RUNNER_TEMP}/selected-hf-plan.json" \
+            --apply --approve
+      - name: Delete all runner-only media and identity files
+        if: always()
+        shell: bash
+        run: |
+          rm -rf -- "${RUNNER_TEMP}/selected-source-zips" \
+            "${RUNNER_TEMP}/selected-candidate" \
+            "${RUNNER_TEMP}/selected-ids.json" \
+            "${RUNNER_TEMP}/selected-ids.json.lock" \
+            "${RUNNER_TEMP}/selected-hf-plan.json"
+
+# No public manga artefacts or mass delete/force-push operations.
+# Four matrix jobs serialise with ReLIFE using hf-manga-private-write.
