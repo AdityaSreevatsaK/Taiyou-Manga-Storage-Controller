@@ -1,7 +1,6 @@
 # P0 publication metadata and private covers: Controller contract proposal
 
-Status: Proposed for Manga Library and Retriever agreement. This PR edits only
-Taiyou-Manga-Storage-Controller. It has no live Hugging Face writes.
+**Status as of 20 November 2026:** Implemented in the Controller and used for the completed five-manga private metadata/cover backfill. This page originally documented a proposed cross-repo contract; the proposal is now reflected in the live canonical catalogue. Review current Manga Library parsing compatibility separately. This document describes the **format and reconciliation algorithm**, not an authorisation for a new HF write.
 
 ## Canonical private dataset
 
@@ -28,8 +27,7 @@ is not a reader's Finished shelf. No chapter or manifest schema changes.
 Library compatibility: its current parser discards optional keys it does not
 recognise. The Library must opt into cover, creatorRoles and metadataSources
 and load covers through an authenticated gateway, not browser Hugging Face
-tokens. Until both teams agree on the exact cover object, DO NOT publish
-metadata that assumes the Library can display it.
+tokens. Confirm the current Library's exact cover descriptor and authenticated asset gateway before promising reader display. Controller upload success does not prove that UI deployment is finished.
 
 ## Retriever candidate format
 
@@ -109,4 +107,4 @@ Apply after review of every conflict, permission and schema decision:
 
 Set HF_TOKEN through a secure local environment variable. Do not commit private
 input, covers, preview output or token. Do not print a private report in
-a public GitHub Actions job. The Controller code PR performs no HF writes.
+a public GitHub Actions job. This documented CLI may perform a live private write **only** after a separately approved, revision-pinned preview. Ordinary code CI performs no HF writes.
