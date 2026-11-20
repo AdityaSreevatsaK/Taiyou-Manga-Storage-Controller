@@ -13,6 +13,7 @@ from typing import Any
 
 from .builder import build, load_json, verify_bundle, write_json
 from .domain import ControllerError
+from .images import DEFAULT_LIMITS
 from .relife_intake import _check_archive_info, _safe_member, _verify_chapter
 from .relife_stage import _copy_verified_cbz
 from .selected_titles import SelectedTitle, selected_title
@@ -166,7 +167,7 @@ def stage_selected_manga(
                                 raise ControllerError("Duplicate or out-of-range numbered manga chapter")
                             current.add(main)
                             main_found.add(main)
-                        _verify_chapter(zf, info, record, __import__("taiyou_manga.images", fromlist=["DEFAULT_LIMITS"]).DEFAULT_LIMITS)
+                        _verify_chapter(zf, info, record, DEFAULT_LIMITS)
                         pages = _page_identity(record)
                         batch_pages += len(pages)
                         archived_pages += len(pages)
