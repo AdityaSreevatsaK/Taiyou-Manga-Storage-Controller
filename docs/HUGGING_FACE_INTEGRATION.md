@@ -1,38 +1,38 @@
-# Hugging Face dataset integration (manual read-only readiness gate)
+# Hugging Face manga storage: authorised ReLIFE import
 
-Owner-designated dataset: `AdityaSreevatsaK/Taiyous-Manga`. **Private status and token access remain to be verified**, and **no media upload or other remote mutation is enabled** by this change.
+**Private destination:** `AdityaSreevatsaK/Taiyous-Manga`, previously verified through the protected GitHub environment `hf-manga-upload` and its `HF_TOKEN` secret.
 
-## Your GitHub setup
+**User approval:** On 20 November 2026 the owner affirmed permission to store these ReLIFE English scans on this private Hugging Face dataset and authorised the upload. This is a user attestation, not independent legal verification.
 
-In the public `AdityaSreevatsaK/Taiyou-Manga-Storage-Controller` repository:
+## Persisted reader-compatible layout
 
-1. Go to **Settings → Environments → New environment** and create `hf-manga-upload`.
-2. Restrict deployment branches to `master`. Configure required reviewers if practicable; do not enable *Prevent self-review* when you are the only eligible reviewer.
-3. Inside that environment, add the **environment secret** `HF_TOKEN` whose value is the privately created Hugging Face token. Do not put it in a repo file, commit, Actions input, issue or chat. A **fine-grained token scoped to this dataset** is preferable to an unrestricted write token.
-4. The read-only health workflow runs automatically on its first merge to `master` (and only on subsequent changes to its own workflow file). You can also open **Actions → Verify private Manga Hugging Face dataset (read-only) → Run workflow** on `master`. Approve the environment job if requested.
+- `catalogue.json`: one ReLIFE series with 237 chapters, published in the final commit only
+- `manifests/ch_*.json`: 237 validated chapter manifests
+- `assets/manga/<series-id>/<chapter-id>/<page-id>.<ext>`: 5,606 original page images
+- `control/relife-identities.json`: backed-up deterministic series/chapter identity mapping
+- `ingest/relife-v1/part-NNN.json`: revisioned, append-only page checkpoints
+- `ingest/relife-v1/attestation.json`: private source acknowledgement and permission statement
+- `ingest/relife-v1/complete.json`: final completion marker, committed with catalogue
 
-The workflow runs `hf-health --repo-id AdityaSreevatsaK/Taiyous-Manga` with no write code. It only checks that credentials can **read** the target and that the dataset is **private**. It does not prove the token can write, verify quota, validate media rights or create any HF commit. The secret is not printed. The workflow cannot execute on PRs. It also runs on a `master` push changing this workflow file, then remains available for manual re-checks.
+These paths preserve the Manga Library v1 catalogue and chapter/page contracts. The Controller-only `inventory.json` is not published as a reader contract. Personal progress and ratings are not uploaded.
 
-## Next import design and blockers
+## Guarded upload procedure
 
-The source run [Manga-Retriever #44547390262](https://github.com/RichardDaffern/Manga-Retriever/actions/runs/44547390262) contains **12 seven-day artefacts**, approximately **1.35 GB combined**, with **237 audited CBZ archives and 5,606 audited pages** in 12 batches nominally covering 222 numbered chapters. Extra or duplicate releases must be resolved by source chapter identity; passing per-batch CBZ counts is not proof of a complete unique series. The source artefacts expire on **26 November 2026**. Source CBZs can contain `ComicInfo.xml`, now safely accepted in the candidate importer without treating its metadata as rights evidence. Use `relife-preflight` to reject missing/duplicate chapters and independently validate the source CBZ and page checksums before considering an upload. An import must validate those XML metadata entries safely and map the CBZs into one series.
+The new `.github/workflows/relife-private-hf-upload.yml` workflow runs once on first merge to `master` and may be manually rerun. It uses the protected `hf-manga-upload` environment and is serialised via `hf-manga-private-write`.
 
-The Controller candidate v1 bundle is **not yet an approved persisted HF dataset schema**. Before real writes, confirm (a) the right to store the particular English scans remotely, (b) a verified complete chapter map and original-byte digests, (c) a private, revision-guarded dataset commit and explicit metadata/rights schema, (d) backup/recovery and safe retries, and (e) that the downstream Manga Library private reader and stable IDs can consume the persisted layout.
+1. Retrieve the original 12 ReLIFE Github Actions ZIPs, which expire 26 November 2026, into temporary runner storage.
+2. Independently verify all 237 original CBZ archives and 5,606 pages, including checksums and dimensions.
+3. Generate the single-series candidate with deterministic opaque IDs, then verify its reader manifests.
+4. Check the private dataset revision and write an exact local preview; recheck revision and candidate before mutation.
+5. Append original page assets in batches of at most 200 files, with a checksum checkpoint in the same optimistic-concurrency commit. No file replacement or deletion is allowed.
+6. Resume safely from committed checkpoint digests if a prior attempt stopped. Refuse any uncheckpointed remote file, changed file list or existing foreign catalogue.
+7. Commit all chapter manifests, identity registry, attestation, catalogue and completion marker only after the pages are present.
+8. Verify published file inventory, and delete runner-only media and temporary credentials regardless of outcome.
 
-A GitHub Actions upload running in this Controller repository cannot assume its default `GITHUB_TOKEN` can download **another repository's** workflow artefacts. It may need a **separate fine-grained GitHub token restricted to `RichardDaffern/Manga-Retriever` with Actions:read**, held as a protected environment secret, or a separately authorised transfer strategy. No such additional secret is required for the read-only dataset health check. Do not place the Hugging Face write token in the public Retriever repository.
+GitHub Actions never publishes source manga media as public workflow artefacts. The source and private HF token are provided only to their respective steps. The remote revisions permit recovery of previous dataset states but do not replace independent backups.
 
-Remote writes must use authenticated HF commits with expected-parent revision checks, reject conflicting overwrites/deletes and be staged for recovery. The user-approved destination and secret setup are *configuration approvals*, not verification of rights to copy third-party scanlations to another platform.
+The owner approval is specific to the ReLIFE title and cannot be reused as permission for other scans. Live uploads must not be enabled for arbitrary unreviewed source content, and must not alter or clear other dataset content.
 
-## Local read-only alternative
+## Reader integration
 
-Install `pip install -e ".[huggingface]"`, authenticate locally with `hf auth login` if appropriate, then run:
-
-```powershell
-python -m taiyou_manga hf-health --repo-id AdityaSreevatsaK/Taiyous-Manga
-```
-
-The output includes only the dataset revision and private/read-only status, not source titles or credentials.
-
-## Read-only artefact validation
-
-See [ReLIFE source preflight](RELIFE_SOURCE_PREFLIGHT.md). The Controller can temporarily download and independently audit the source run in a separate GitHub Actions workflow using its ephemeral token, if cross-repo read access permits. That workflow never reads `HF_TOKEN` or uploads original content. Real remote write operations still require separate rights, backup, layout and revision-gate approval.
+After successful upload, the existing Manga Library still needs a private Hugging Face asset adaptor before the new ReLIFE entry can be read in the deployed UI. Upload success must not be presented as completed reader integration.
