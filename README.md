@@ -74,3 +74,9 @@ Software is MIT-licensed; **this licence does not grant any rights to third-part
 ReLIFE Actions source media can be **audited without upload** using the protected local CLI `relife-preflight` or the isolated [ReLIFE source preflight workflow](docs/RELIFE_SOURCE_PREFLIGHT.md). It does not use Hugging Face write credentials.
 
 The specific approved **ReLIFE private Hugging Face upload** runs through [its protected GitHub Actions workflow](.github/workflows/relife-private-hf-upload.yml) and its [storage contract](docs/HUGGING_FACE_INTEGRATION.md). It uploads neither personal progress nor public media artefacts. Its completeness must be confirmed in Actions; adding a workflow is not itself proof that the remote upload succeeded.
+
+## Canonical private HF layout and current migration hold
+
+**Canonical:** `data/library.json` containing `{"schemaVersion":1,"mediaKind":"manga","entries":[...]}`. Chapters and pages belong under `data/manifests/` and `data/manga/`. The legacy ReLIFE data remains intact under root `catalogue.json`, `manifests/` and `assets/manga/` until recovery-backed migration. See [canonical data contract](docs/DATA_CONTRACTS.md).
+
+The prior ReLIFE upload was successful but used the wrong remote layout. Its old workflow is now retired. All further manga uploads, including Maid-sama!, Last Game, Love So Life and Onizuka, are paused until a full off-platform backup and isolated private staging migration have passed. The proposed four-title legacy-format PR #20 was closed without merging.
