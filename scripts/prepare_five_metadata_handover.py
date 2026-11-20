@@ -14,12 +14,11 @@ import json
 import re
 import stat
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from taiyou_manga.domain import ControllerError
-from taiyou_manga.hf_layout import validate_library
 from taiyou_manga.metadata import load_candidates
 from taiyou_manga.relife_stage import _stable_registry
 from taiyou_manga.selected_stage import stable_registry
@@ -183,7 +182,7 @@ def build(cover_artifact: Path, metadata_artifact: Path, output: Path) -> dict[s
 
         meta = record["metadata"]
         source = record["provenance"]
-        when = datetime.fromisoformat(source["retrievedAtUtc"]).astimezone(timezone.utc)
+        when = datetime.fromisoformat(source["retrievedAtUtc"]).astimezone(UTC)
         origin = {
             "provider": "mangadex",
             "sourceId": source_id,
