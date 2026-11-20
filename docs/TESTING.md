@@ -1,5 +1,7 @@
 # Tests and evidence
 
+**Updated context (20 November 2026):** The test counts quoted below are historical per-PR snapshots. The latest management-feature PR #28 and follow-on read-only live smoke #30 passed the Windows/Linux Python 3.11/3.12 matrix. The protected read-only private HF check confirmed 5 manga, 587 chapters, 14,635 pages and sample manifests at revision 0942616f03e165c7f9e4258110c9fdb4b085f1fc. General upload/de-list production mutations still require separate staging validation. See [current Handbook](REPOSITORY_HANDBOOK.md).
+
 Offline tests cover valid and corrupt PNGs, MIME mismatch, decoded size limits, natural ordering, ZIP/CBZ traversal, ordinary directory entries, case-insensitive duplicates and compressed size quotas, symlinks, suspicious compression, non-images, aggregate folder/import quotas, incremental chapter processing, stable IDs after title updates, idempotent rebuilds, guarded cross-process registry writes, duplicate/case-colliding ID rejection, pre-publish verification and failed-publish recovery, strict manifest validation, missing assets, duplicate pages, revision conflicts, no-op mock reruns, unapproved mock write rejection, full-media backup integrity and non-destructive restoration. Mock revisions detect rights/catalogue/manifest edits and refuse modified or missing snapshots. Private CSV reports are tested for formula injection, idempotent refusal, corrupt input and accurate chapter aggregates.
 
 At PR #4 (18 November 2026), the matrix passed **38 tests** on each of Windows/Linux and Python 3.11/3.12, plus Ruff formatting/linting, mypy and pip-audit. The actual workflow run is the source of truth for newer changes. `hf-health` validation has no live CI invocation. No credentials or private content are needed.
@@ -7,7 +9,13 @@ At PR #4 (18 November 2026), the matrix passed **38 tests** on each of Windows/L
 Run `python -m unittest discover -s tests -v` with Pillow installed. Then `python -m ruff format --check .`, `python -m ruff check .`, `python -m mypy src/taiyou_manga`, `python -m pip_audit`. CI matrix: Windows/Linux, Python 3.11/3.12. Do not claim that hosted CI passed until the actual PR workflows complete.
 
 **Unverified pending work:** multi-process mock revision race, realistic interrupted remote uploads, private HF authorisation failures, AVIF portability on the four CI runners, full browser/reader compatibility and cloud restore. These require additional dedicated tests before any live writes.
-\nThe `tests/test_identity_migration.py` suite covers full series-folder renames, immutable series/chapter/page identities, preview-only mode, stale revision rejection, mandatory backups, incomplete plans, case collisions, failed atomic writes, concurrent locks, and reverse-plan recovery.\n\nSource traversal tests also cover limiting nested source directory depth, maximum discovered filesystem entries, fail-closed partial imports, and CLI validation of out-of-range limits.\n
+
+The `tests/test_identity_migration.py` suite covers full series-folder renames, immutable series/chapter/page identities, preview-only mode, stale revision rejection, mandatory backups, incomplete plans, case collisions, failed atomic writes, concurrent locks, and reverse-plan recovery.
+
+Source traversal tests also cover limiting nested source directory depth, maximum discovered filesystem entries, fail-closed partial imports, and CLI validation of out-of-range limits.
+
 CI's Checkout and Setup Python actions use their Node 24-compatible major releases, pinned to immutable commit SHAs. The full Python 3.11/3.12 × Windows/Linux matrix must pass before every merge.
-\nThe offline ReLIFE synthetic tests validate CBZ ComicInfo metadata, 12-artefact chapter integrity assumptions, chapter-number reconciliation, missing ranges, tampering, full image checksum verification and read-only source handling. Real pages are never included in CI.\n
+
+The offline ReLIFE synthetic tests validate CBZ ComicInfo metadata, 12-artefact chapter integrity assumptions, chapter-number reconciliation, missing ranges, tampering, full image checksum verification and read-only source handling. Real pages are never included in CI.
+
 The ReLIFE artefact fetcher is tested without network access for expected batch membership, signed download redirect trust, size limits and partial-file cleanup. Only the dedicated, explicitly read-only source workflow may fetch the user's real ReLIFE GitHub Actions artefacts.
