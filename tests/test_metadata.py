@@ -234,6 +234,52 @@ class MetadataTests(unittest.TestCase):
             with self.assertRaisesRegex(ControllerError, "stale"):
                 apply(remote, "synthetic-token", self.document, approval, approve=True)
 
+    def test_private_cover_commit_keeps_original_pages_and_rights(self) -> None:
+        import io
+
+        doc = candidate(covers=True)
+        (self.root / "covers").mkdir()
+        image = Image.new("RGB", (16, 24))
+        stream = io.BytesIO()
+        image.save(stream, format="WEBP")
+        bytes_image = stream.getvalue()
+        (self.root / "covers" / "demo.webp").write_bytes(bytes_image)
+        self.document.write_text(json.dumps(doc), encoding="utf-8")
+        original_bytes = json.dumps(canonical_library([self.original])).encode("utf-8")
+        remote = FakeHF(original_bytes, self.root)
+        pages_before = {
+            path: body
+            for path, body in remote.files.items()
+            if path.startswith(("data/manga/", "data/manifests/"))
+        }
+        fake = types.ModuleType("huggingface_hub")
+        fake.CommitOperationAdd = FakeAdd
+        fake.hf_hub_download = lambda **kw: remote.download(kw["filename"])
+        with patch.dict(sys.modules, {"huggingface_hub": fake}):
+            plan = preview(remote, "token", self.document)
+            self.assertEqual(plan["status"], "ready")
+            self.assertEqual(len(plan["coverUploads"]), 1)
+            self.assertEqual(len(plan["coverRights"]), 1)
+            approval = self.root / "cover-preview.json"
+            approval.write_text(json.dumps(plan), encoding="utf-8")
+            result = apply(remote, "token", self.document, approval, approve=True)
+        self.assertEqual(result["coversAdded"], 1)
+        self.assertEqual(result["coverRightsStored"], 1)
+        self.assertEqual(
+            remote.files["data/covers/mng_aaaaaaaaaaaa.webp"], bytes_image
+        )
+        self.assertEqual(
+            {path: remote.files[path] for path in pages_before}, pages_before
+        )
+        self.assertEqual(remote.files[result["catalogueBackup"]], original_bytes)
+        rights_path = plan["coverRights"][0]["path"]
+        rights_doc = json.loads(remote.files[rights_path])
+        self.assertEqual(rights_doc["attribution"], "Publisher")
+        self.assertEqual(rights_doc["mangaId"], self.original["id"])
+        after = json.loads(remote.files["data/library.json"])["entries"][0]
+        self.assertEqual(after["chapters"], self.original["chapters"])
+        self.assertEqual(after["cover"]["mimeType"], "image/webp")
+
     def test_no_write_when_existing_manual_metadata_conflicts(self) -> None:
         old = {**self.original, "synopsis": "Private manual corrections"}
         remote = FakeHF(json.dumps(canonical_library([old])).encode(), self.root)
