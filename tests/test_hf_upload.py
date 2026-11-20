@@ -73,12 +73,15 @@ class HFUploadTests(unittest.TestCase):
         self.meta = self.root / "catalogue.json"
         self.meta.write_text("[]", encoding="utf-8")
         self.pages = [
-            UploadFile(f"assets/manga/mng_test/ch_test/pg_{i:08}.png", self.page, hashlib.sha256(b"synthetic-media").hexdigest(), 15)
+            UploadFile(
+                f"assets/manga/mng_test/ch_test/pg_{i:08}.png",
+                self.page,
+                hashlib.sha256(b"synthetic-media").hexdigest(),
+                15,
+            )
             for i in range(3)
         ]
-        self.metadata = [
-            UploadFile("catalogue.json", self.meta, hashlib.sha256(b"[]").hexdigest(), 2)
-        ]
+        self.metadata = [UploadFile("catalogue.json", self.meta, hashlib.sha256(b"[]").hexdigest(), 2)]
 
     def test_stable_opaque_ids_independent_of_import_machine(self) -> None:
         first = _stable_registry({"1", "19.5"})
@@ -113,9 +116,7 @@ class HFUploadTests(unittest.TestCase):
 
     def test_apply_requires_explicit_approval_even_with_token(self) -> None:
         with self.assertRaisesRegex(ControllerError, "Explicit owner"):
-            apply_relife_upload(
-                self.root, self.root / "ids", "test", self.root / "plan.json", approve=False
-            )
+            apply_relife_upload(self.root, self.root / "ids", "test", self.root / "plan.json", approve=False)
 
     def test_preview_and_apply_adds_media_first_and_catalogue_last(self) -> None:
         api = FakeApi()
