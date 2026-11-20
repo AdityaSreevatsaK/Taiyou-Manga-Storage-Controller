@@ -21,6 +21,7 @@ jobs:
         run: |
           python -m ruff format .
           python -m ruff check --fix .
+      # Restrict this temporary formatter to the feature branch only.
       - name: Commit formatted Python only
         shell: bash
         run: |
