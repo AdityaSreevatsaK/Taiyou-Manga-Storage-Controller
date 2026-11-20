@@ -1,0 +1,63 @@
+name: Verify four manga sources without modifying Hugging Face
+
+on:
+  push:
+    branches: [feat/selected-manga-canonical-intake-20261120]
+    paths:
+      - '.github/workflows/selected-manga-source-verify.yml'
+      - 'src/taiyou_manga/selected_titles.py'
+      - 'src/taiyou_manga/selected_stage.py'
+      - 'scripts/fetch_selected_manga_artifacts.py'
+      - 'tests/test_selected_stage.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify-original-manga-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        slug: [maid-sama, last-game, love-so-life, onizuka-sawarida]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install local candidate builder
+        run: |
+          python -m pip install --upgrade "setuptools>=84.1.0"
+          python -m pip install -e .
+      - name: Validate all staged source and bonus-chapter fixtures
+        run: python -m unittest discover -s tests -p 'test_selected_stage.py' -v
+      - name: Download only the exact source-run ZIPs for this title
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TITLE_SLUG: ${{ matrix.slug }}
+        run: |
+          python -m scripts.fetch_selected_manga_artifacts \
+            --slug "${TITLE_SLUG}" \
+            --output "${RUNNER_TEMP}/selected-source-zips"
+      - name: Validate nested chapter archives and stage the canonical reader candidate
+        env:
+          TITLE_SLUG: ${{ matrix.slug }}
+        run: |
+          python -m taiyou_manga.selected_stage \
+            --slug "${TITLE_SLUG}" \
+            --artifact-dir "${RUNNER_TEMP}/selected-source-zips" \
+            --output "${RUNNER_TEMP}/selected-candidate" \
+            --registry "${RUNNER_TEMP}/selected-ids.json"
+          python -m taiyou_manga verify --bundle "${RUNNER_TEMP}/selected-candidate"
+      - name: Remove temporary content, identities and archives
+        if: always()
+        run: |
+          rm -rf -- "${RUNNER_TEMP}/selected-source-zips" \
+            "${RUNNER_TEMP}/selected-candidate" \
+            "${RUNNER_TEMP}/selected-ids.json" \
+            "${RUNNER_TEMP}/selected-ids.json.lock"
+
+# No Hugging Face token is supplied. No files or public artifacts are uploaded.

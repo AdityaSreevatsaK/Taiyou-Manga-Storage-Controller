@@ -158,6 +158,7 @@ def _build(
     direction: str,
     rights: dict[str, Any] | None,
     limits: Limits,
+    allow_duplicate_pages: bool = False,
 ) -> dict[str, Any]:
     if direction not in ("rtl", "ltr", "vertical"):
         raise ControllerError("Reading direction must be rtl, ltr or vertical")
@@ -193,12 +194,18 @@ def _build(
             warnings.extend(_number_warnings(item))
             pages: list[Page] = []
             checksums: set[str] = set()
-            for raw in sorted(item.pages, key=lambda page: natural_key(page.name)):
+            for position, raw in enumerate(sorted(item.pages, key=lambda page: natural_key(page.name))):
                 checked = check_bytes(raw.data, raw.name, limits)
-                if checked.checksum in checksums:
+                repeated = checked.checksum in checksums
+                if repeated and not allow_duplicate_pages:
                     raise ControllerError(f"Exact duplicate image in chapter: {item.key}")
+                if repeated:
+                    warnings.append(f"Repeated source image retained in chapter: {item.key}")
                 checksums.add(checked.checksum)
-                page_id = _page_id(chapter_id, checked.checksum)
+                # The first occurrence retains its original ID. Any identical later
+                # page has a distinct, stable identity derived from its position.
+                identity_checksum = f"{checked.checksum}:repeat:{position}" if repeated else checked.checksum
+                page_id = _page_id(chapter_id, identity_checksum)
                 asset_path = f"manga/{series_id}/{chapter_id}/{page_id}{checked.extension}"
                 page = Page(
                     page_id,
@@ -297,10 +304,11 @@ def build(
     direction: str = "rtl",
     rights_path: Path | None = None,
     limits: Limits = DEFAULT_LIMITS,
+    allow_duplicate_pages: bool = False,
 ) -> dict[str, Any]:
     rights = parse_rights(rights_path)
     with _registry_lock(state_file):
-        return _build(source, output, state_file, title, direction, rights, limits)
+        return _build(source, output, state_file, title, direction, rights, limits, allow_duplicate_pages)
 
 
 def _verify_bundle(bundle: Path, limits: Limits = DEFAULT_LIMITS) -> dict[str, Any]:
