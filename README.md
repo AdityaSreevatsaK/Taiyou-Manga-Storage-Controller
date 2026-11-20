@@ -74,3 +74,5 @@ Software is MIT-licensed; **this licence does not grant any rights to third-part
 ReLIFE Actions source media can be **audited without upload** using the protected local CLI `relife-preflight` or the isolated [ReLIFE source preflight workflow](docs/RELIFE_SOURCE_PREFLIGHT.md). It does not use Hugging Face write credentials.
 
 The specific approved **ReLIFE private Hugging Face upload** runs through [its protected GitHub Actions workflow](.github/workflows/relife-private-hf-upload.yml) and its [storage contract](docs/HUGGING_FACE_INTEGRATION.md). It uploads neither personal progress nor public media artefacts. Its completeness must be confirmed in Actions; adding a workflow is not itself proof that the remote upload succeeded.
+
+The four explicitly approved English manga **Maid-sama!, Last Game, Love So Life and Onizuka-chan and Sawarida-kun** have a guarded [private, serialised Hugging Face upload workflow](.github/workflows/selected-manga-private-hf-upload.yml), preserving any existing ReLIFE catalogue entries. See [selected source and recovery contract](docs/SELECTED_MANGA_UPLOAD.md).
