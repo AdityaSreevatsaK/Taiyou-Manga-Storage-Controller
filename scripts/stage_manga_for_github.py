@@ -75,8 +75,10 @@ def source_paths(bundle: Path, candidates_path: Path) -> list[tuple[Path, str]]:
         if not COVER_INPUT.fullmatch(relative):
             raise ControllerError("Unsafe candidate cover path")
         cover = candidates_path.parent / relative
-        if cover.is_symlink() or not cover.is_file() or not cover.resolve().is_relative_to(
-            candidates_path.parent.resolve()
+        if (
+            cover.is_symlink()
+            or not cover.is_file()
+            or not cover.resolve().is_relative_to(candidates_path.parent.resolve())
         ):
             raise ControllerError("Missing or unsafe private source cover")
         include.append((cover, "metadata/" + relative))

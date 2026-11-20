@@ -51,16 +51,20 @@ class PrivateGitHubImportTests(unittest.TestCase):
         )
         self.bundle = self.root / "bundle"
         build(
-            self.source, self.bundle, self.root / "ids.json", "Synthetic Test Manga",
-            "vertical", self.rights, allow_duplicate_pages=False,
-            flat_numbered=True, manga_key="synthetic-remote-fixture",
+            self.source,
+            self.bundle,
+            self.root / "ids.json",
+            "Synthetic Test Manga",
+            "vertical",
+            self.rights,
+            allow_duplicate_pages=False,
+            flat_numbered=True,
+            manga_key="synthetic-remote-fixture",
         )
         self.entry = load_json(self.bundle / "catalogue.json")[0]
         self.meta = self.root / "meta"
         (self.meta / "covers").mkdir(parents=True)
-        Image.new("RGB", (50, 80), (10, 120, 50)).save(
-            self.meta / "covers" / "synthetic.jpg", format="JPEG"
-        )
+        Image.new("RGB", (50, 80), (10, 120, 50)).save(self.meta / "covers" / "synthetic.jpg", format="JPEG")
         candidates = {
             "schemaVersion": 1,
             "mediaKind": "manga-metadata-candidates",
@@ -101,25 +105,38 @@ class PrivateGitHubImportTests(unittest.TestCase):
     def test_only_owner_exact_issue_command_can_trigger_private_ingest(self) -> None:
         preview = parse_event(
             self.event(f"/manga-import {TICKET} preview"),
-            "issue_comment", OWNER, "refs/heads/master",
+            "issue_comment",
+            OWNER,
+            "refs/heads/master",
         )
         self.assertEqual(preview["ticket"], TICKET)
         self.assertEqual(preview["phase"], "preview")
         apply = parse_event(
             self.event(f"/manga-import {TICKET} apply {REVISION} {FINGERPRINT}"),
-            "issue_comment", OWNER, "refs/heads/master",
+            "issue_comment",
+            OWNER,
+            "refs/heads/master",
         )
         self.assertEqual(apply["fingerprint"], FINGERPRINT)
 
         with self.assertRaises(ControllerError):
-            parse_event(self.event(f"/manga-import {TICKET} preview"), "issue_comment", "outsider", "refs/heads/master")
-        with self.assertRaises(ControllerError):
             parse_event(
-                self.event(f"/manga-import {TICKET} apply"), "issue_comment", OWNER,
+                self.event(f"/manga-import {TICKET} preview"),
+                "issue_comment",
+                "outsider",
                 "refs/heads/master",
             )
         with self.assertRaises(ControllerError):
-            parse_event(self.event(f"/manga-import {TICKET} preview"), "issue_comment", OWNER, "refs/heads/feature")
+            parse_event(
+                self.event(f"/manga-import {TICKET} apply"),
+                "issue_comment",
+                OWNER,
+                "refs/heads/master",
+            )
+        with self.assertRaises(ControllerError):
+            parse_event(
+                self.event(f"/manga-import {TICKET} preview"), "issue_comment", OWNER, "refs/heads/feature"
+            )
         wrong_issue = self.event(f"/manga-import {TICKET} preview")
         wrong_issue["issue"] = {"title": "Some other issue"}
         with self.assertRaises(ControllerError):
@@ -131,7 +148,9 @@ class PrivateGitHubImportTests(unittest.TestCase):
         with self.assertRaises(ControllerError):
             parse_event(
                 {"inputs": {"ticket": TICKET, "phase": "apply"}},
-                "workflow_dispatch", OWNER, "refs/heads/master",
+                "workflow_dispatch",
+                OWNER,
+                "refs/heads/master",
             )
 
     def test_verified_private_package_extracts_with_no_schema_change(self) -> None:
@@ -189,7 +208,7 @@ class PrivateGitHubImportTests(unittest.TestCase):
         with zipfile.ZipFile(package, "w") as archive:
             member = zipfile.ZipInfo("bundle/unsafe.jpg")
             member.create_system = 3
-            member.external_attr = (0o120777 << 16)
+            member.external_attr = 0o120777 << 16
             archive.writestr(member, b"spoof")
         with self.assertRaisesRegex(ControllerError, "symlink"):
             extract_private_package(package, self.root / "extracted")
@@ -208,8 +227,13 @@ class PrivateGitHubImportTests(unittest.TestCase):
         }
         with self.assertRaisesRegex(ControllerError, "identity"):
             _preflight(
-                bundle, candidates, receipt, REVISION, {"data/library.json"},
-                json.dumps(canonical_library([])).encode(), [],
+                bundle,
+                candidates,
+                receipt,
+                REVISION,
+                {"data/library.json"},
+                json.dumps(canonical_library([])).encode(),
+                [],
             )
 
 

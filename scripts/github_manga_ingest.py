@@ -20,12 +20,14 @@ from typing import Any
 
 from taiyou_manga.builder import load_json, verify_bundle
 from taiyou_manga.domain import ControllerError
-from taiyou_manga.hf_bulk import plan_upload, prepare_plan, upload
+from taiyou_manga.hf_bulk import prepare_plan, upload
+from taiyou_manga.hf_layout import canonical_library
 from taiyou_manga.hf_manage import quick_integrity, snapshot
-from taiyou_manga.hf_metadata import _api, apply as apply_metadata, preview as preview_metadata
+from taiyou_manga.hf_metadata import _api
+from taiyou_manga.hf_metadata import apply as apply_metadata
+from taiyou_manga.hf_metadata import preview as preview_metadata
 from taiyou_manga.hf_upload import DATASET
 from taiyou_manga.metadata import load_candidates, reconcile
-from taiyou_manga.hf_layout import canonical_library
 
 ROOT = "ingest/agent-queue"
 QUEUE_ISSUE_TITLE = "Private manga import queue"
@@ -78,7 +80,9 @@ def parse_event(event: dict[str, Any], name: str, actor: str, ref: str) -> dict[
         values = event.get("inputs", {})
         if not isinstance(values, dict):
             _fail("Malformed manual import inputs")
-        values = {key: str(values.get(key, "") or "") for key in ("ticket", "phase", "revision", "fingerprint")}
+        values = {
+            key: str(values.get(key, "") or "") for key in ("ticket", "phase", "revision", "fingerprint")
+        }
     else:
         _fail("Unsupported GitHub event")
     if not TICKET_RE.fullmatch(values["ticket"]) or values["phase"] not in ("preview", "apply"):
@@ -132,7 +136,10 @@ def _read_stage(token: str, ticket: str) -> tuple[Path, dict[str, Any], str]:
             token=token,
         )
     )
-    if package.stat().st_size != manifest["packageBytes"] or sha256_file(package) != manifest["packageSha256"]:
+    if (
+        package.stat().st_size != manifest["packageBytes"]
+        or sha256_file(package) != manifest["packageSha256"]
+    ):
         _fail("Staged manga package bytes do not match its immutable receipt")
     return package, manifest, revision
 
@@ -197,8 +204,13 @@ def extract_private_package(archive: Path, destination: Path) -> tuple[Path, Pat
 
 
 def _preflight(
-    bundle: Path, candidate: Path, stage_manifest: dict[str, Any],
-    revision: str, files: set[str], catalogue: bytes, old: list[dict[str, Any]]
+    bundle: Path,
+    candidate: Path,
+    stage_manifest: dict[str, Any],
+    revision: str,
+    files: set[str],
+    catalogue: bytes,
+    old: list[dict[str, Any]],
 ) -> tuple[dict[str, Any], str, dict[str, Any]]:
     candidate_rows, candidate_sha = load_candidates(candidate)
     verified = verify_bundle(bundle)
@@ -296,7 +308,8 @@ def execute(token: str, values: dict[str, str]) -> dict[str, Any]:
             _fail("Published manga chapter/page counts do not match staged originals")
         if any(
             next((entry for entry in current if entry["id"] == prior["id"]), None) != prior
-            for prior in old if prior["id"] != target_id
+            for prior in old
+            if prior["id"] != target_id
         ):
             _fail("A pre-existing, unrelated manga record changed during import")
         integrity = quick_integrity(current, current_files)
