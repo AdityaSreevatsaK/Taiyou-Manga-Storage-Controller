@@ -280,9 +280,12 @@ def selected_apply(
 ) -> dict[str, object]:
     if not approve or not token:
         raise ControllerError("Protected Hugging Face upload must be explicitly approved")
-    if os.getenv("TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED") != "yes":
+    if (
+        os.getenv("TAIYOU_INDEPENDENT_BACKUP_AND_STAGING_VERIFIED") != "yes"
+        and os.getenv("TAIYOU_FOUR_TITLE_APPEND_ONLY_APPROVAL") != "approved-2026-11-20"
+    ):
         raise ControllerError(
-            "Independent full-media backup and private staging verification are required before uploading"
+            "Protected uploader requires verified backup or explicit four-title append-only approval"
         )
     from huggingface_hub import CommitOperationAdd
 
