@@ -151,7 +151,9 @@ def _conflicts(item: NewManga, existing: list[dict[str, Any]], paths: set[str]) 
     collision = [
         row
         for row in existing
-        if row["id"] != sid and normalized_title(row["title"]) == normalized_title(item.entry["title"])
+        if row["id"] != sid
+        and normalized_title(item.entry["title"])
+        in {normalized_title(name) for name in [row["title"], *row["aliases"]]}
     ]
     if collision:
         return "conflict", "Normalised manga title already exists with a different immutable ID"
