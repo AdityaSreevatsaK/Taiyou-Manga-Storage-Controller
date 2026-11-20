@@ -10,15 +10,11 @@ from __future__ import annotations
 import csv
 import hashlib
 import html
-import io
 import json
-import os
 import re
-import shutil
 import tempfile
 import unicodedata
 import zipfile
-from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -110,7 +106,9 @@ def quick_integrity(
     missing_covers: list[str] = []
     missing_page_series: list[str] = []
     indexed_manga = {entry["id"] for entry in entries}
-    seen_paths = {path.split("/")[2] for path in files if MANGA_ROOT.fullmatch(path[:path.rfind("/") + 1])}
+    seen_paths = {
+        match.group(1) for path in files if (match := MANGA_ROOT.match(path))
+    }
     for item in entries:
         if item["id"] not in seen_paths:
             missing_page_series.append(item["id"])
@@ -369,8 +367,13 @@ def download_all(
         # Immutable ID avoids path traversal and title rename collisions.
         target = directory / f"{item['id']}.zip"
         results.append(_series_archive(token, sha, files, item, target, catalogue=catalogue))
+    report = directory / f"download-report-{sha[:12]}.json"
+    suffix = 1
+    while report.exists():
+        report = directory / f"download-report-{sha[:12]}-{suffix:03}.json"
+        suffix += 1
     _new_file(
-        directory / f"download-report-{sha[:12]}.json",
+        report,
         _json_data({"sourceRevision": sha, "series": len(results), "results": results}),
     )
     return {
