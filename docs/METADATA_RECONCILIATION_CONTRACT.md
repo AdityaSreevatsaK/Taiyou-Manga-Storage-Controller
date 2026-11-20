@@ -90,6 +90,9 @@ The existence of an image on a website is not proof of permission.
   commit adds new private covers (only if paths are free), a byte-identical
   backup of the prior catalogue at
   control/metadata-backups/<revision>/library.json, and new data/library.json.
+- For every new cover, its attribution and permission evidence are saved
+  separately at control/cover-rights/<mangaId>/<coverSha256>.json within the
+  private dataset. Rights evidence is not exposed in the reader catalogue.
 - Any concurrent change means preview approval becomes invalid. No deletion,
   bulk copy or destructive migration is part of this feature.
 
