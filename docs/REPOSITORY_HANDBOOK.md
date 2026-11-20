@@ -251,6 +251,7 @@ All remote commands below use **python -m taiyou_manga.hf_cli**. Their output fi
 | 18 | metadata-report / metadata | Missing metadata report and safe reconciliation |
 | 19 | download | All-series archive backup export |
 | 20 | offline-menu | Original local synthetic, identity and mock workflow |
+| 21 | flat-preview / flat-build + bulk-upload | Import one complete manga from images named chapter_page.jpg, using the existing canonical manifests and protected upload |
 
 Example **read-only** commands:
 
@@ -342,3 +343,5 @@ Evidence hierarchy: actual live read-only revision + file/manifests verification
 - Future improvements should prioritise safer interrupted-batch recovery, separate independent media backup verification, staged real-HF operation tests, reporting/documentation consistency, zip/import scalability and explicit cross-repo schema tests.
 
 See [AI_AGENT_PLAYBOOK.md](AI_AGENT_PLAYBOOK.md) for the mandatory checklist whenever an AI agent continues this work.
+
+New flat-image chapter imports are covered by [Manga Library integration note](LIBRARY_FLAT_CHAPTER_IMPORT_CONTRACT.md).
