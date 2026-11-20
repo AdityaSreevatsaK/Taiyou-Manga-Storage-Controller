@@ -9,3 +9,5 @@
 - Guard all future mutations with preview, explicit owner authorisation, revision preconditions, immutable backups, failure recovery and tests.
 - Keep Python 3.11/3.12 and Windows PowerShell working. `python -m unittest discover -s tests -v` needs no paid accounts.
 - Do not claim green CI if jobs have not executed. Document the exact failed/unavailable gate.
+
+- 2026-11-20 scope extension: the owner explicitly authorised private HF uploads of Kaichou wa Maid-sama!, Last Game, Love So Life, and Onizuka-chan and Sawarida-kun from exactly the three approved source runs documented in docs/SELECTED_MANGA_UPLOAD.md. These are the only additional titles in scope. Preserve existing catalogue entries and media, use revision-guarded resumable commits and never change/delete remote files except an expected-parent merge of catalogue.json.
