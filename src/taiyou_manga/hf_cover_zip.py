@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Any
 
 from .domain import ControllerError
-from .hf_metadata import _api, apply, preview
 from .hf_manage import _json_data, _new_file
+from .hf_metadata import _api, apply, preview
 
 MAX_FILES = 201
 MAX_TOTAL = 500 * 1024 * 1024
@@ -95,9 +95,7 @@ def unpack_verified(zip_path: Path, destination: Path) -> Path:
     return destination / next(iter(present))
 
 
-def cover_zip_upload(
-    token: str, archive: Path, plan_path: Path, *, approve: bool = False
-) -> dict[str, Any]:
+def cover_zip_upload(token: str, archive: Path, plan_path: Path, *, approve: bool = False) -> dict[str, Any]:
     if not token:
         raise ControllerError("Private Hugging Face token is required")
     api = _api(token)

@@ -33,10 +33,15 @@ class CoverZipTests(unittest.TestCase):
             b"synthetic-not-a-real-image",
         )
         # Actual image bytes are subsequently validated by hf_metadata.
-        args = parser().parse_args([
-            "upload-covers", "--zip", str(self.input_zip),
-            "--plan-file", str(self.root / "preview.json"),
-        ])
+        args = parser().parse_args(
+            [
+                "upload-covers",
+                "--zip",
+                str(self.input_zip),
+                "--plan-file",
+                str(self.root / "preview.json"),
+            ]
+        )
         self.assertFalse(args.apply)
         self.assertFalse(args.approve)
 
