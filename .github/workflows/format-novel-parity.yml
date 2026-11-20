@@ -1,4 +1,5 @@
 name: Format Novel-style manga Controller feature branch (temporary)
+# Rerun after fixing one E501 line-length issue.
 on:
   push:
     branches: [feat/novel-controller-feature-parity-20261120]
