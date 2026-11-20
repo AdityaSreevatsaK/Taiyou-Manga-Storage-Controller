@@ -159,7 +159,11 @@ def _build(
     rights: dict[str, Any] | None,
     limits: Limits,
     allow_duplicate_pages: bool = False,
+    flat_numbered: bool = False,
+    manga_key: str | None = None,
 ) -> dict[str, Any]:
+    if flat_numbered and not title:
+        raise ControllerError("Flat numbered manga import requires an explicit series title")
     if direction not in ("rtl", "ltr", "vertical"):
         raise ControllerError("Reading direction must be rtl, ltr or vertical")
     if title:
@@ -182,7 +186,13 @@ def _build(
     output.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=".manga-stage-", dir=output.parent))
     try:
-        for item in discover(source, limits):
+        if flat_numbered:
+            from .flat_import import discover_flat
+
+            chapters_source = discover_flat(source, title or "", limits, manga_key=manga_key)
+        else:
+            chapters_source = discover(source, limits)
+        for item in chapters_source:
             folded = item.key.casefold()
             if folded in seen_keys:
                 raise ControllerError("Duplicate chapter locations")
@@ -305,10 +315,17 @@ def build(
     rights_path: Path | None = None,
     limits: Limits = DEFAULT_LIMITS,
     allow_duplicate_pages: bool = False,
+    flat_numbered: bool = False,
+    manga_key: str | None = None,
 ) -> dict[str, Any]:
+    if not flat_numbered and manga_key is not None:
+        raise ControllerError("A stable manga key is only supported for flat numbered imports")
     rights = parse_rights(rights_path)
     with _registry_lock(state_file):
-        return _build(source, output, state_file, title, direction, rights, limits, allow_duplicate_pages)
+        return _build(
+            source, output, state_file, title, direction, rights, limits,
+            allow_duplicate_pages, flat_numbered, manga_key,
+        )
 
 
 def _verify_bundle(bundle: Path, limits: Limits = DEFAULT_LIMITS) -> dict[str, Any]:
