@@ -22,7 +22,7 @@ from taiyou_manga.builder import load_json, verify_bundle
 from taiyou_manga.domain import ControllerError
 from taiyou_manga.hf_bulk import prepare_plan, upload
 from taiyou_manga.hf_layout import canonical_library
-from taiyou_manga.hf_manage import quick_integrity, snapshot
+from taiyou_manga.hf_manage import quick_integrity, snapshot, verified_integrity
 from taiyou_manga.hf_metadata import _api
 from taiyou_manga.hf_metadata import apply as apply_metadata
 from taiyou_manga.hf_metadata import preview as preview_metadata
@@ -31,6 +31,7 @@ from taiyou_manga.metadata import load_candidates, reconcile
 
 ROOT = "ingest/agent-queue"
 QUEUE_ISSUE_TITLE = "Private manga import queue"
+QUEUE_ISSUE_NUMBER = 36
 OWNER = "AdityaSreevatsaK"
 COMMAND = re.compile(
     r"^/manga-import (?P<ticket>[0-9a-f]{32}) (?P<phase>preview|apply)"
@@ -42,6 +43,8 @@ HEX64 = re.compile(r"^[0-9a-f]{64}$")
 MAX_PACKAGE_BYTES = 5_000_000_000
 MAX_FILES = 5500
 MAX_STAGE_MANIFEST = 32_000
+MAX_ZIP_PATH_CHARS = 240
+MAX_ZIP_PATH_DEPTH = 16
 
 
 def _fail(message: str) -> None:
@@ -66,6 +69,7 @@ def parse_event(event: dict[str, Any], name: str, actor: str, ref: str) -> dict[
         if (
             not isinstance(issue, dict)
             or issue.get("title") != QUEUE_ISSUE_TITLE
+            or issue.get("number") != QUEUE_ISSUE_NUMBER
             or issue.get("pull_request") is not None
             or not isinstance(comment, dict)
             or not isinstance(comment.get("body"), str)
@@ -155,8 +159,13 @@ def extract_private_package(archive: Path, destination: Path) -> tuple[Path, Pat
         for item in members:
             name = item.filename
             parts = PurePosixPath(name).parts
+            raw_parts = name.split("/")
             if (
                 not name
+                or len(name) > MAX_ZIP_PATH_CHARS
+                or len(raw_parts) > MAX_ZIP_PATH_DEPTH
+                or any(part in ("", ".", "..") or len(part) > 180 for part in raw_parts)
+                or any(ord(char) < 32 or ord(char) == 127 for char in name)
                 or name.startswith("/")
                 or "\\" in name
                 or ":" in name
@@ -247,6 +256,37 @@ def _preflight(
     return plan, signature, extra
 
 
+
+def verify_new_originals(
+    api: Any,
+    token: str,
+    revision: str,
+    all_files: set[str],
+    entry: dict[str, Any],
+    *,
+    newly_published: bool,
+) -> int:
+    """Read back and hash every newly published page, not the entire old library."""
+    if not newly_published:
+        return 0
+    manga_id = entry["id"]
+    # A title-scoped scan must not misclassify other published series as orphans.
+    relevant_files = {
+        path
+        for path in all_files
+        if not path.startswith("data/manga/") or path.startswith(f"data/manga/{manga_id}/")
+    }
+    report = verified_integrity(api, token, revision, relevant_files, [entry], deep=True)
+    expected_pages = sum(chapter["pageCount"] for chapter in entry["chapters"])
+    if (
+        report.get("complete") is not True
+        or report.get("verifiedPages") != expected_pages
+        or report.get("verifiedImageBytes", 0) < expected_pages
+    ):
+        _fail("Newly published original manga pages failed deep remote verification")
+    return expected_pages
+
+
 def execute(token: str, values: dict[str, str]) -> dict[str, Any]:
     package, manifest, _stage_revision = _read_stage(token, values["ticket"])
     with tempfile.TemporaryDirectory(prefix="taiyou-remote-ingest-") as directory:
@@ -269,6 +309,9 @@ def execute(token: str, values: dict[str, str]) -> dict[str, Any]:
             "privateSource": True,
             "publicArtifacts": 0,
             "deleteOperations": 0,
+            "automatedPageIntegrity": "all source pages fully decoded, dimensions/MIME/bytes/SHA-256 checked",
+            "manualReviewScope": "metadata, counts, permissions and any reported exceptions, not every page",
+            "visualContentQualityNotGuaranteed": True,
         }
         if values["phase"] == "preview":
             return summary
@@ -295,7 +338,7 @@ def execute(token: str, values: dict[str, str]) -> dict[str, Any]:
                 apply_metadata(_api(token), token, candidate, file, approve=True)
         elif metadata_plan["status"] != "no-op":
             _fail("Unexpected metadata publication state")
-        _, new_revision, current_files, _, current = snapshot(token)
+        post_api, new_revision, current_files, _, current = snapshot(token)
         target_id = manifest["mangaId"]
         matches = [row for row in current if row["id"] == target_id]
         if len(matches) != 1:
@@ -315,6 +358,14 @@ def execute(token: str, values: dict[str, str]) -> dict[str, Any]:
         integrity = quick_integrity(current, current_files)
         if not integrity["complete"]:
             _fail("Post-publication private manga integrity check failed")
+        deep_verified_pages = verify_new_originals(
+            post_api,
+            token,
+            new_revision,
+            current_files,
+            final,
+            newly_published=bool(result["uploaded"]),
+        )
         return {
             "status": "private-canonical-upload-verified",
             "ticket": values["ticket"],
@@ -322,6 +373,7 @@ def execute(token: str, values: dict[str, str]) -> dict[str, Any]:
             "uploadedNew": result["uploaded"],
             "chapters": manifest["chapters"],
             "pages": manifest["pages"],
+            "deepVerifiedNewPages": deep_verified_pages,
             "coverPresent": bool(final.get("cover")),
             "metadataPresent": bool(final.get("synopsis") and final.get("creators")),
             "preExistingMangaPreserved": len(old) - int(target_id in {e["id"] for e in old}),
@@ -345,8 +397,8 @@ def main() -> int:
         result = execute(token, values)
         print(json.dumps(result, sort_keys=True), flush=True)
         return 0
-    except (ControllerError, KeyError, ValueError, OSError, zipfile.BadZipFile) as exc:
-        # Never print private titles, full filesystem paths or HF media URLs.
+    except Exception as exc:
+        # Fail closed without printing private titles, HTTP request URLs, file paths or traceback details.
         print(f"PRIVATE_MANGA_IMPORT_REFUSED: {type(exc).__name__}", file=sys.stderr)
         return 2
 

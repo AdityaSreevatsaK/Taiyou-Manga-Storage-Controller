@@ -7,10 +7,17 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 from PIL import Image
 
-from scripts.github_manga_ingest import _preflight, extract_private_package, parse_event, sha256_file
+from scripts.github_manga_ingest import (
+    _preflight,
+    extract_private_package,
+    parse_event,
+    sha256_file,
+    verify_new_originals,
+)
 from scripts.stage_manga_for_github import source_paths, write_package
 from taiyou_manga.builder import build, load_json, verify_bundle
 from taiyou_manga.domain import ControllerError
@@ -19,6 +26,7 @@ from taiyou_manga.metadata import load_candidates
 
 OWNER = "AdityaSreevatsaK"
 ISSUE = "Private manga import queue"
+ISSUE_NUMBER = 36
 TICKET = "a" * 32
 REVISION = "b" * 40
 FINGERPRINT = "c" * 64
@@ -98,7 +106,7 @@ class PrivateGitHubImportTests(unittest.TestCase):
     @staticmethod
     def event(body: str) -> dict[str, object]:
         return {
-            "issue": {"title": ISSUE},
+            "issue": {"title": ISSUE, "number": ISSUE_NUMBER},
             "comment": {"body": body, "user": {"login": OWNER}},
         }
 
@@ -137,6 +145,10 @@ class PrivateGitHubImportTests(unittest.TestCase):
             parse_event(
                 self.event(f"/manga-import {TICKET} preview"), "issue_comment", OWNER, "refs/heads/feature"
             )
+        wrong_number = self.event(f"/manga-import {TICKET} preview")
+        wrong_number["issue"]["number"] = ISSUE_NUMBER + 1
+        with self.assertRaises(ControllerError):
+            parse_event(wrong_number, "issue_comment", OWNER, "refs/heads/master")
         wrong_issue = self.event(f"/manga-import {TICKET} preview")
         wrong_issue["issue"] = {"title": "Some other issue"}
         with self.assertRaises(ControllerError):
@@ -202,6 +214,50 @@ class PrivateGitHubImportTests(unittest.TestCase):
             archive.writestr("bundle/../anything.txt", b"bad")
         with self.assertRaisesRegex(ControllerError, "Unsafe private manga staging ZIP path"):
             extract_private_package(package, self.root / "extracted")
+
+    def test_noncanonical_zip_components_and_control_characters_are_rejected(self) -> None:
+        for name in ("bundle/./page.jpg", "bundle//page.jpg", "bundle/control\x01.jpg"):
+            with self.subTest(name=repr(name)):
+                package = self.root / "unsafe.zip"
+                with zipfile.ZipFile(package, "w") as archive:
+                    archive.writestr(name, b"unsafe")
+                with self.assertRaisesRegex(ControllerError, "Unsafe private manga staging ZIP path"):
+                    extract_private_package(package, self.root / "extracted")
+
+    def test_only_new_title_pages_need_deep_remote_checksum_verification(self) -> None:
+        entry = self.entry
+        sid = entry["id"]
+        files = {
+            f"data/manga/{sid}/ch_aaaaaaaaaaaa/pg_aaaaaaaaaaaa.jpg",
+            "data/manga/mng_other123456/ch_bbbbbbbbbbbb/pg_bbbbbbbbbbbb.jpg",
+        }
+        expected = sum(chapter["pageCount"] for chapter in entry["chapters"])
+        report = {
+            "complete": True,
+            "verifiedPages": expected,
+            "verifiedImageBytes": expected * 10,
+        }
+        with patch("scripts.github_manga_ingest.verified_integrity", return_value=report) as check:
+            verified = verify_new_originals(object(), "private-token", REVISION, files, entry, newly_published=True)
+            self.assertEqual(verified, expected)
+            args, kwargs = check.call_args
+            self.assertTrue(kwargs["deep"])
+            self.assertEqual(args[4], [entry])
+            self.assertNotIn(
+                "data/manga/mng_other123456/ch_bbbbbbbbbbbb/pg_bbbbbbbbbbbb.jpg",
+                args[3],
+            )
+            self.assertEqual(
+                verify_new_originals(object(), "private-token", REVISION, files, entry, newly_published=False),
+                0,
+            )
+            self.assertEqual(check.call_count, 1)
+        with patch(
+            "scripts.github_manga_ingest.verified_integrity",
+            return_value={"complete": False, "verifiedPages": expected, "verifiedImageBytes": expected * 10},
+        ):
+            with self.assertRaisesRegex(ControllerError, "deep remote verification"):
+                verify_new_originals(object(), "private-token", REVISION, files, entry, newly_published=True)
 
     def test_zip_member_symlinks_are_rejected(self) -> None:
         package = self.root / "symlinks.zip"

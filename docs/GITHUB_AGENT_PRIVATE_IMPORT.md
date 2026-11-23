@@ -42,19 +42,19 @@ Send that ticket to ChatGPT in this conversation, asking to trigger and verify t
 
 ## GitHub agent-triggered protocol
 
-On the issue with the exact title **Private manga import queue**, only comments authored by the repository owner may initiate an import. The command format is:
+On [issue #36](https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller/issues/36), with the exact title **Private manga import queue**, only comments authored by the repository owner may initiate an import. The workflow and parser both pin the issue number; another issue with the same title cannot initiate an import. The command format is:
 
     /manga-import <32-character-ticket> preview
 
-The protected GitHub Action reads the private source at an immutable HF revision and validates file bytes, manga IDs, page counts, metadata, cover paths, permission evidence and title conflicts. It prints a **sanitised** one-line JSON preview including the current 40-character dataset revision and a 64-character fingerprint of the exact approved plan. No canonical writes occur.
+The protected GitHub Action reads the private source at an immutable HF revision and fully decodes and hashes **every** page. It validates page dimensions, MIME types, byte counts, immutable IDs, ordered manifests, metadata, cover paths, permission evidence and title conflicts. The owner does **not** need to visually review thousands of individual pages. Fully valid but incorrect/blank source images may still require exception-based visual review. It prints a **sanitised** one-line JSON preview including the current 40-character dataset revision and a 64-character fingerprint of the exact approved plan. No canonical writes occur.
 
 To apply the **same** unchanged preview, the agent posts:
 
     /manga-import <32-character-ticket> apply <40-character-expected-revision> <64-character-fingerprint>
 
-Apply refuses changes in the private dataset, source bytes, title/ID conflicts or metadata between preview and apply. The existing Controller performs checkpointed append-only media uploads, creates an automatic catalogue backup, publishes the manga entry last, and then performs revision-guarded metadata/cover enrichment. Original media are never overwritten. Existing catalogue entries and original page identities are preserved.
+Apply refuses changes in the private dataset, source bytes, title/ID conflicts or metadata between preview and apply. The owner must separately approve the specific preview summary, source/rights context and any exceptions before asking an agent to apply. A successful automated check, a fingerprint printed by GitHub or control of the repository account is **not** itself permission to proceed. Require a human approval gate on the `hf-manga-upload` environment and verify its configuration before enabling apply. The existing Controller performs checkpointed append-only media uploads, creates an automatic catalogue backup, publishes the manga entry last, and then performs revision-guarded metadata/cover enrichment. Original media are never overwritten. Existing catalogue entries and original page identities are preserved.
 
-The agent reads workflow job results and reports the verified dataset revision and chapter/page totals. The workflow prints no original media URLs or tokens and never uploads GitHub Actions artifacts.
+The agent reads workflow job results and reports the verified dataset revision and chapter/page totals. After a new manga is published, the workflow downloads and rechecks every newly uploaded page against its manifest SHA-256, MIME, dimensions and byte size. This potentially consumes substantial time and bandwidth for large manga; it does not re-download every existing title. The workflow prints no original media URLs or tokens and never uploads GitHub Actions artifacts.
 
 ## Manual fallback
 
@@ -67,5 +67,6 @@ From GitHub Actions, choose **Owner-agent private manga ingest (preview then pro
 - Staged originals remain private after upload for recovery. Cleanup/deletion is not automatic.
 - New-series import is append-only. Changing pages or chapter IDs of a previously uploaded manga is deliberately refused.
 - If the process is interrupted, post a new preview for the same ticket, then use a new fingerprint. Never reuse a stale approval.
+- A pre-change catalogue JSON backup is **not** an off-platform full-media backup. Before any write that could endanger existing original bytes, require an independently verified full-media backup and isolated recovery rehearsal. The Library Master correction endpoint has distinct backup behaviour and its `dropped` publication value is not currently compatible with the Controller validator; resolve that in a coordinated producer-consumer schema decision.
 - The canonical destination remains AdityaSreevatsaK/Taiyous-Manga and its data/library.json, data/manifests/, data/manga/, data/covers/ paths. Manga Library needs no new schema.
-- The workflow can be retried by ChatGPT through GitHub comments once a ticket has been staged. New tickets require separate validation.
+- The workflow can be retried by ChatGPT through GitHub comments once a ticket has been staged. New tickets require separate validation. If image/media upload succeeds but metadata/cover enrichment fails, the manga may already be catalogued: preserve it, report a partial publication, obtain a fresh snapshot and a separately reviewed metadata-only plan. Do not automatically roll back or overwrite page originals.
