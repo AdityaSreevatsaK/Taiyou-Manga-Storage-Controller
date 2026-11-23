@@ -64,6 +64,16 @@ class CanonicalMangaLayoutTests(unittest.TestCase):
         with self.assertRaisesRegex(ControllerError, "envelope"):
             validate_library([self.entry])
 
+    def test_publication_status_matches_library_master_contract(self) -> None:
+        for status in ("unknown", "ongoing", "completed", "hiatus", "dropped"):
+            with self.subTest(status=status):
+                entry = {**self.entry, "publicationStatus": status}
+                self.assertEqual(validate_library(canonical_library([entry])), [entry])
+        for invalid in ("abandoned", "", None):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(ControllerError, "publication status"):
+                    canonical_library([{**self.entry, "publicationStatus": invalid}])
+
     def test_preview_preserves_all_ids_and_original_media_bytes(self) -> None:
         expected = legacy_migration_preview([self.entry], self.paths, self.manifests, "a" * 40)
         self.assertEqual(expected["canonicalPath"], CANONICAL_CATALOGUE)
