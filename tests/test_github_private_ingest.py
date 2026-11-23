@@ -238,7 +238,9 @@ class PrivateGitHubImportTests(unittest.TestCase):
             "verifiedImageBytes": expected * 10,
         }
         with patch("scripts.github_manga_ingest.verified_integrity", return_value=report) as check:
-            verified = verify_new_originals(object(), "private-token", REVISION, files, entry, newly_published=True)
+            verified = verify_new_originals(
+                object(), "private-token", REVISION, files, entry, newly_published=True
+            )
             self.assertEqual(verified, expected)
             args, kwargs = check.call_args
             self.assertTrue(kwargs["deep"])
@@ -248,7 +250,9 @@ class PrivateGitHubImportTests(unittest.TestCase):
                 args[3],
             )
             self.assertEqual(
-                verify_new_originals(object(), "private-token", REVISION, files, entry, newly_published=False),
+                verify_new_originals(
+                    object(), "private-token", REVISION, files, entry, newly_published=False
+                ),
                 0,
             )
             self.assertEqual(check.call_count, 1)

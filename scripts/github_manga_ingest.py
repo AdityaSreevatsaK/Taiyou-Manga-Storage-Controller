@@ -256,7 +256,6 @@ def _preflight(
     return plan, signature, extra
 
 
-
 def verify_new_originals(
     api: Any,
     token: str,
