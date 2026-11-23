@@ -138,6 +138,18 @@ class MetadataTests(unittest.TestCase):
         with self.assertRaisesRegex(ControllerError, "HTTPS"):
             validate_candidates(invalid)
 
+    def test_dropped_publication_status_candidate_is_compatible(self) -> None:
+        source = candidate()
+        source["candidates"][0]["metadata"]["publicationStatus"] = "dropped"
+        checked = validate_candidates(source)
+        updated, _, _, conflicts = reconcile([self.original], checked, self.root, set())
+        self.assertFalse(conflicts)
+        self.assertEqual(updated[0]["publicationStatus"], "dropped")
+        self.assertEqual(validate_library(canonical_library(updated)), updated)
+        source["candidates"][0]["metadata"]["publicationStatus"] = "abandoned"
+        with self.assertRaisesRegex(ControllerError, "publication status"):
+            validate_candidates(source)
+
     def test_metadata_is_additive_without_touching_chapters_or_ids(self) -> None:
         checked, _ = load_candidates(self.document)
         updated, files, changes, conflicts = reconcile([self.original], checked, self.root, set())

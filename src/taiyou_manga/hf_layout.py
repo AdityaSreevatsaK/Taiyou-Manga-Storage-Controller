@@ -56,7 +56,7 @@ def validate_entries(raw: object) -> list[dict[str, Any]]:
         seen_series.add(sid)
         if entry.get("direction") not in ("vertical", "rtl", "ltr"):
             raise ControllerError("Invalid manga reading direction")
-        if entry.get("publicationStatus") not in ("unknown", "ongoing", "completed", "hiatus"):
+        if entry.get("publicationStatus") not in ("unknown", "ongoing", "completed", "hiatus", "dropped"):
             raise ControllerError("Invalid publication status")
         for key, maximum in (("aliases", 24), ("creators", 24), ("tags", 32)):
             values = entry.get(key)
