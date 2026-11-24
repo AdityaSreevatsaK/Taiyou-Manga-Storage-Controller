@@ -308,7 +308,14 @@ class PrivateGitHubImportTests(unittest.TestCase):
 
         with (
             patch.dict(os.environ, {"MANGA_APPLY_ENABLED": "true"}),
-            patch("scripts.github_manga_ingest._read_stage", return_value=(source, {}, REVISION)),
+            patch(
+                "scripts.github_manga_ingest._read_stage",
+                return_value=(
+                    source,
+                    {"mangaId": self.entry["id"], "chapters": 1, "pages": 3},
+                    REVISION,
+                ),
+            ),
             patch(
                 "scripts.github_manga_ingest.extract_private_package",
                 return_value=(self.bundle, self.candidates),
