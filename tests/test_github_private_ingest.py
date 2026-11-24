@@ -14,11 +14,11 @@ from PIL import Image
 
 from scripts.github_manga_ingest import (
     _preflight,
+    execute,
     extract_private_package,
     parse_event,
     sha256_file,
     verify_new_originals,
-    execute,
 )
 from scripts.stage_manga_for_github import source_paths, write_package
 from taiyou_manga.builder import build, load_json, verify_bundle
