@@ -287,6 +287,11 @@ def verify_new_originals(
 
 
 def execute(token: str, values: dict[str, str]) -> dict[str, Any]:
+    # This flag is intentionally absent by default. The protected GitHub
+    # environment, reviewer policy, scoped token and recovery readiness must
+    # be independently checked before it is set to the exact string "true".
+    if values["phase"] == "apply" and os.environ.get("MANGA_APPLY_ENABLED") != "true":
+        _fail("Private manga apply is disabled pending verified production safeguards")
     package, manifest, _stage_revision = _read_stage(token, values["ticket"])
     with tempfile.TemporaryDirectory(prefix="taiyou-remote-ingest-") as directory:
         root = Path(directory)
@@ -327,6 +332,21 @@ def execute(token: str, values: dict[str, str]) -> dict[str, Any]:
 
         with contextlib.redirect_stdout(io.StringIO()):
             result = upload(token, bundle, approved, approve=True)
+        # Verify original bytes immediately after catalogue publication. If
+        # later metadata/cover enrichment fails, newly published page images
+        # have still been checked against their immutable remote manifests.
+        published_api, published_revision, published_files, _, published_entries = snapshot(token)
+        published = [row for row in published_entries if row["id"] == manifest["mangaId"]]
+        if len(published) != 1:
+            _fail("Published manga identity missing after private media commit")
+        deep_verified_pages = verify_new_originals(
+            published_api,
+            token,
+            published_revision,
+            published_files,
+            published[0],
+            newly_published=bool(result["uploaded"]),
+        )
         metadata_plan = preview_metadata(_api(token), token, candidate)
         if metadata_plan["status"] == "conflict":
             _fail("Manga pages were published, but protected metadata fields need review")
@@ -337,7 +357,7 @@ def execute(token: str, values: dict[str, str]) -> dict[str, Any]:
                 apply_metadata(_api(token), token, candidate, file, approve=True)
         elif metadata_plan["status"] != "no-op":
             _fail("Unexpected metadata publication state")
-        post_api, new_revision, current_files, _, current = snapshot(token)
+        _, new_revision, current_files, _, current = snapshot(token)
         target_id = manifest["mangaId"]
         matches = [row for row in current if row["id"] == target_id]
         if len(matches) != 1:
@@ -357,14 +377,6 @@ def execute(token: str, values: dict[str, str]) -> dict[str, Any]:
         integrity = quick_integrity(current, current_files)
         if not integrity["complete"]:
             _fail("Post-publication private manga integrity check failed")
-        deep_verified_pages = verify_new_originals(
-            post_api,
-            token,
-            new_revision,
-            current_files,
-            final,
-            newly_published=bool(result["uploaded"]),
-        )
         return {
             "status": "private-canonical-upload-verified",
             "ticket": values["ticket"],

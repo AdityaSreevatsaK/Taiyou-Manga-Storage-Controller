@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 import zipfile
@@ -17,6 +18,7 @@ from scripts.github_manga_ingest import (
     parse_event,
     sha256_file,
     verify_new_originals,
+    execute,
 )
 from scripts.stage_manga_for_github import source_paths, write_package
 from taiyou_manga.builder import build, load_json, verify_bundle
@@ -262,6 +264,73 @@ class PrivateGitHubImportTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(ControllerError, "deep remote verification"):
                 verify_new_originals(object(), "private-token", REVISION, files, entry, newly_published=True)
+
+    def test_apply_is_fail_closed_without_loading_private_staging(self) -> None:
+        values = {
+            "ticket": TICKET,
+            "phase": "apply",
+            "revision": REVISION,
+            "fingerprint": FINGERPRINT,
+        }
+        for enabled in ("", "false", "TRUE"):
+            with self.subTest(enabled=enabled):
+                with patch.dict(os.environ, {"MANGA_APPLY_ENABLED": enabled}):
+                    with patch("scripts.github_manga_ingest._read_stage") as private_read:
+                        with self.assertRaisesRegex(ControllerError, "disabled"):
+                            execute("synthetic-token", values)
+                        private_read.assert_not_called()
+
+    def test_apply_rechecks_remote_media_before_metadata(self) -> None:
+        values = {
+            "ticket": TICKET,
+            "phase": "apply",
+            "revision": REVISION,
+            "fingerprint": FINGERPRINT,
+        }
+        source = self.root / "package.zip"
+        source.write_bytes(b"synthetic")
+        entries = [self.entry]
+        files = {"data/library.json"}
+        initial = (object(), REVISION, files, b"{}", [])
+        published = (object(), "d" * 40, files, b"{}", entries)
+        after_metadata = (object(), "e" * 40, files, b"{}", entries)
+        order: list[str] = []
+
+        def remote_check(*args: object, **kwargs: object) -> int:
+            order.append("deep-remote")
+            self.assertTrue(kwargs["newly_published"])
+            self.assertEqual(args[4], self.entry)
+            return 3
+
+        def metadata_preview(*args: object, **kwargs: object) -> dict[str, str]:
+            order.append("metadata-preview")
+            return {"status": "no-op"}
+
+        with (
+            patch.dict(os.environ, {"MANGA_APPLY_ENABLED": "true"}),
+            patch("scripts.github_manga_ingest._read_stage", return_value=(source, {}, REVISION)),
+            patch(
+                "scripts.github_manga_ingest.extract_private_package",
+                return_value=(self.bundle, self.candidates),
+            ),
+            patch(
+                "scripts.github_manga_ingest._preflight",
+                return_value=(
+                    {"status": "ready", "new": 1, "unchanged": 0},
+                    FINGERPRINT,
+                    {"metadataChanges": 0, "coverCount": 0},
+                ),
+            ),
+            patch("scripts.github_manga_ingest.snapshot", side_effect=[initial, published, after_metadata]),
+            patch("scripts.github_manga_ingest.upload", return_value={"uploaded": 1}),
+            patch("scripts.github_manga_ingest.verify_new_originals", side_effect=remote_check),
+            patch("scripts.github_manga_ingest.preview_metadata", side_effect=metadata_preview),
+            patch("scripts.github_manga_ingest.quick_integrity", return_value={"complete": True}),
+        ):
+            actual = execute("synthetic-token", values)
+        self.assertEqual(actual["status"], "private-canonical-upload-verified")
+        self.assertEqual(actual["deepVerifiedNewPages"], 3)
+        self.assertEqual(order, ["deep-remote", "metadata-preview"])
 
     def test_zip_member_symlinks_are_rejected(self) -> None:
         package = self.root / "symlinks.zip"

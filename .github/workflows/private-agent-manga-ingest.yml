@@ -63,10 +63,13 @@ jobs:
       - name: Validate owner-issued preview or exact approved apply
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          MANGA_APPLY_ENABLED: ${{ vars.MANGA_APPLY_ENABLED }}
           HF_HUB_DISABLE_TELEMETRY: '1'
         run: python scripts/github_manga_ingest.py
 
 # This runs from the protected master branch only. GitHub never receives the
 # private source ZIP as an Action artifact, code commit, issue attachment or log.
 # Owner-issued commands reference opaque tickets in an already private HF dataset.
-# Preview has zero canonical writes. Apply requires the previewed SHA + fingerprint.
+# Preview has zero canonical writes. Apply additionally requires a deliberate
+# repository variable MANGA_APPLY_ENABLED=true, plus SHA and fingerprint.
+# NEVER enable the variable without verifying protected-environment reviewers.
