@@ -25,7 +25,7 @@ COVER_ASSET = re.compile(r"^covers/(mng_[A-Za-z0-9_-]{8,64})\.(png|jpg|jpeg|webp
 MAX_CANDIDATES = 10000
 MAX_INPUT_BYTES = 2 * 1024 * 1024
 MAX_COVER_BYTES = 5 * 1024 * 1024
-STATUS_VALUES = {"unknown", "ongoing", "completed", "hiatus"}
+STATUS_VALUES = {"unknown", "ongoing", "completed", "hiatus", "dropped"}
 
 
 def encoded(value: object) -> bytes:

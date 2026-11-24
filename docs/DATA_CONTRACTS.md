@@ -38,7 +38,7 @@ Each entry is a manga with the following required public publication fields:
 - aliases: array of alternative title strings
 - creators: array of creator strings, maintained for compatibility
 - tags: **publication** genres/tags, not personal tags
-- publicationStatus: one of unknown, ongoing, completed, hiatus
+- publicationStatus: one of unknown, ongoing, completed, hiatus, dropped
 - direction: one of vertical, rtl, ltr
 - chapters: ordered chapter descriptors
 
