@@ -334,6 +334,7 @@ class PrivateGitHubImportTests(unittest.TestCase):
             ),
             patch("scripts.github_manga_ingest.snapshot", side_effect=[initial, published, after_metadata]),
             patch("scripts.github_manga_ingest.upload", return_value={"uploaded": 1}),
+            patch("scripts.github_manga_ingest._api", return_value=object()),
             patch("scripts.github_manga_ingest.verify_new_originals", side_effect=remote_check),
             patch("scripts.github_manga_ingest.preview_metadata", side_effect=metadata_preview),
             patch("scripts.github_manga_ingest.quick_integrity", return_value={"complete": True}),
