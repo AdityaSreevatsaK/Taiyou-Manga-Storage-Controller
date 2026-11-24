@@ -75,6 +75,17 @@ approved Hugging Face upload, or follow
 For the Manga Library agent, use the
 [exact integration note](docs/LIBRARY_FLAT_CHAPTER_IMPORT_CONTRACT.md).
 
+## Secure GitHub / ChatGPT agent-operated imports
+
+For large private manga ZIPs, the owner can validate locally and **stage one
+verified private bundle**, then let a ChatGPT agent issue GitHub Actions
+preview and apply commands through the connected GitHub account. Original
+artwork and access tokens are **never added to this public repository**.
+
+See [GitHub agent private import guide](docs/GITHUB_AGENT_PRIVATE_IMPORT.md)
+for the Windows staging command, protected Actions workflow and the dedicated
+owner-only import queue.
+
 ## Basic commands
 
 Use **python -m taiyou_manga.hf_cli** for private HF catalogue management:
