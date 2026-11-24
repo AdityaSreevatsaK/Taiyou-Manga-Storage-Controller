@@ -200,6 +200,10 @@ class PrivateGitHubImportTests(unittest.TestCase):
         self.assertEqual(plan["new"], 1)
         self.assertEqual(extra["coverCount"], 1)
         self.assertEqual(extra["metadataChanges"], 5)
+        self.assertEqual(
+            extra["metadataFieldNames"],
+            ["cover", "creators", "publicationStatus", "synopsis", "tags"],
+        )
         _, different_revision, _ = _preflight(
             bundle, candidates, receipt, "d" * 40, {"data/library.json"}, raw_catalogue, []
         )
@@ -325,7 +329,7 @@ class PrivateGitHubImportTests(unittest.TestCase):
                 return_value=(
                     {"status": "ready", "new": 1, "unchanged": 0},
                     FINGERPRINT,
-                    {"metadataChanges": 0, "coverCount": 0},
+                    {"metadataChanges": 0, "metadataFieldNames": [], "coverCount": 0},
                 ),
             ),
             patch("scripts.github_manga_ingest.snapshot", side_effect=[initial, published, after_metadata]),

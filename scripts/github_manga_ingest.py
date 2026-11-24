@@ -245,6 +245,7 @@ def _preflight(
     canonical_library(amended)
     extra = {
         "metadataChanges": len(changes),
+        "metadataFieldNames": sorted({change["field"] for change in changes}),
         "coverCount": len(covers),
         "coverDigests": sorted([sha256_file(path) for path in covers.values()]),
         "candidateSha256": candidate_sha,
@@ -308,7 +309,9 @@ def execute(token: str, values: dict[str, str]) -> dict[str, Any]:
             "chapters": manifest["chapters"],
             "pages": manifest["pages"],
             "metadataFieldsToAdd": extra["metadataChanges"],
+            "metadataFieldNames": extra["metadataFieldNames"],
             "coverUploads": extra["coverCount"],
+            "sourceRightsRecordValidated": True,
             "existingMangaCount": len(old),
             "privateSource": True,
             "publicArtifacts": 0,
