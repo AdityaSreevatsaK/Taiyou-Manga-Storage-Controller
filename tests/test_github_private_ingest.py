@@ -228,12 +228,8 @@ class PrivateGitHubImportTests(unittest.TestCase):
             metadata_write.assert_not_called()
 
     def test_protected_workflow_keeps_preview_and_apply_fenced(self) -> None:
-        workflow = (
-            Path(__file__).resolve().parents[1]
-            / ".github"
-            / "workflows"
-            / "private-agent-manga-ingest.yml"
-        ).read_text(encoding="utf-8")
+        workflows = Path(__file__).resolve().parents[1] / ".github" / "workflows"
+        workflow = (workflows / "private-agent-manga-ingest.yml").read_text(encoding="utf-8")
         for required in (
             "environment: hf-manga-upload",
             "github.actor == 'AdityaSreevatsaK'",
