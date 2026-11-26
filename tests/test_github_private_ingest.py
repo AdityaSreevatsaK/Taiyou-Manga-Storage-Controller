@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
+import types
 import unittest
 import zipfile
 from pathlib import Path
@@ -14,6 +16,7 @@ from PIL import Image
 
 from scripts.github_manga_ingest import (
     _preflight,
+    _read_stage,
     execute,
     extract_private_package,
     parse_event,
@@ -111,6 +114,135 @@ class PrivateGitHubImportTests(unittest.TestCase):
             "issue": {"title": ISSUE, "number": ISSUE_NUMBER},
             "comment": {"body": body, "user": {"login": OWNER}},
         }
+
+    def synthetic_stage(self) -> tuple[Path, dict[str, object]]:
+        """Build a complete owner-free stage receipt without any remote write."""
+        package = self.root / "synthetic-stage.zip"
+        write_package(package, source_paths(self.bundle, self.candidates))
+        return package, {
+            "schemaVersion": 1,
+            "kind": "private-manga-github-stage",
+            "ticket": TICKET,
+            "mangaId": self.entry["id"],
+            "chapters": 1,
+            "pages": 3,
+            "metadataSha256": sha256_file(self.candidates),
+            "packageBytes": package.stat().st_size,
+            "packageSha256": sha256_file(package),
+        }
+
+    def test_private_stage_read_checks_visibility_revision_and_original_bytes(self) -> None:
+        package, receipt = self.synthetic_stage()
+        manifest_file = self.root / "receipt.json"
+        manifest_file.write_text(json.dumps(receipt), encoding="utf-8")
+        downloaded: list[dict[str, object]] = []
+
+        def download(**kwargs: object) -> str:
+            downloaded.append(kwargs)
+            self.assertEqual(kwargs["revision"], REVISION)
+            self.assertEqual(kwargs["repo_type"], "dataset")
+            return str(manifest_file if str(kwargs["filename"]).endswith("manifest.json") else package)
+
+        fake_hub = types.ModuleType("huggingface_hub")
+        fake_hub.hf_hub_download = download
+        info = types.SimpleNamespace(private=True, sha=REVISION)
+        api = types.SimpleNamespace(dataset_info=lambda *_args, **_kwargs: info)
+        with (
+            patch.dict(sys.modules, {"huggingface_hub": fake_hub}),
+            patch("scripts.github_manga_ingest._api", return_value=api),
+        ):
+            original, loaded, revision = _read_stage("synthetic-token", TICKET)
+            self.assertEqual(original, package)
+            self.assertEqual(loaded, receipt)
+            self.assertEqual(revision, REVISION)
+            self.assertEqual(len(downloaded), 2)
+
+            info.private = False
+            downloaded.clear()
+            with self.assertRaisesRegex(ControllerError, "not private"):
+                _read_stage("synthetic-token", TICKET)
+            self.assertEqual(downloaded, [])
+
+            info.private = True
+            with package.open("ab") as stream:
+                stream.write(b"synthetic-tamper")
+            with self.assertRaisesRegex(ControllerError, "bytes do not match"):
+                _read_stage("synthetic-token", TICKET)
+
+    def test_synthetic_full_preview_is_read_only_and_returns_only_safe_fields(self) -> None:
+        package, receipt = self.synthetic_stage()
+        snapshot = (
+            object(),
+            REVISION,
+            {"data/library.json"},
+            json.dumps(canonical_library([])).encode("utf-8"),
+            [],
+        )
+        values = {"ticket": TICKET, "phase": "preview", "revision": "", "fingerprint": ""}
+        with (
+            patch("scripts.github_manga_ingest._read_stage", return_value=(package, receipt, REVISION)),
+            patch("scripts.github_manga_ingest.snapshot", return_value=snapshot),
+            patch("scripts.github_manga_ingest.upload") as upload,
+            patch("scripts.github_manga_ingest.apply_metadata") as metadata_write,
+            patch("scripts.github_manga_ingest.preview_metadata") as metadata_preview,
+        ):
+            preview = execute("synthetic-token", values)
+            self.assertEqual(preview["status"], "preview-ready")
+            self.assertEqual(preview["expectedRevision"], REVISION)
+            self.assertEqual(preview["newManga"], 1)
+            self.assertEqual((preview["chapters"], preview["pages"]), (1, 3))
+            self.assertEqual(preview["metadataFieldsToAdd"], 5)
+            self.assertTrue(preview["sourceRightsRecordValidated"])
+            self.assertEqual(preview["publicArtifacts"], 0)
+            self.assertRegex(preview["approvalFingerprint"], r"^[0-9a-f]{64}$")
+            self.assertNotIn(self.entry["title"], json.dumps(preview))
+            upload.assert_not_called()
+            metadata_write.assert_not_called()
+            metadata_preview.assert_not_called()
+
+    def test_stale_preview_approval_refuses_upload_before_any_remote_write(self) -> None:
+        package, receipt = self.synthetic_stage()
+        snapshot = (
+            object(),
+            REVISION,
+            {"data/library.json"},
+            json.dumps(canonical_library([])).encode("utf-8"),
+            [],
+        )
+        values = {
+            "ticket": TICKET,
+            "phase": "apply",
+            "revision": REVISION,
+            "fingerprint": FINGERPRINT,
+        }
+        with (
+            patch.dict(os.environ, {"MANGA_APPLY_ENABLED": "true"}),
+            patch("scripts.github_manga_ingest._read_stage", return_value=(package, receipt, REVISION)),
+            patch("scripts.github_manga_ingest.snapshot", return_value=snapshot),
+            patch("scripts.github_manga_ingest.upload") as upload,
+            patch("scripts.github_manga_ingest.apply_metadata") as metadata_write,
+        ):
+            with self.assertRaisesRegex(ControllerError, "fingerprint"):
+                execute("synthetic-token", values)
+            upload.assert_not_called()
+            metadata_write.assert_not_called()
+
+    def test_protected_workflow_keeps_preview_and_apply_fenced(self) -> None:
+        workflows = Path(__file__).resolve().parents[1] / ".github" / "workflows"
+        workflow = (workflows / "private-agent-manga-ingest.yml").read_text(encoding="utf-8")
+        for required in (
+            "environment: hf-manga-upload",
+            "github.actor == 'AdityaSreevatsaK'",
+            "github.ref == 'refs/heads/master'",
+            "github.event.issue.number == 36",
+            "github.event.comment.user.login == 'AdityaSreevatsaK'",
+            "cancel-in-progress: false",
+            "MANGA_APPLY_ENABLED: ${{ vars.MANGA_APPLY_ENABLED }}",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, workflow)
+        self.assertNotIn("actions/upload-artifact", workflow)
+        self.assertNotIn("contents: write", workflow)
 
     def test_only_owner_exact_issue_command_can_trigger_private_ingest(self) -> None:
         preview = parse_event(

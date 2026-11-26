@@ -13,23 +13,23 @@ On Windows, update your Manga Storage Controller checkout:
 
 ## Prepare the manga locally, without uploading canonical data
 
-For Acquainted: Encounter Spin-Off, the local folder contains the pages ZIP, metadata ZIP, separate cover image, and the private working directory created by the existing uploader. Run its **no-write** validation first:
+For the existing approved import workflow, the local folder contains the pages ZIP, metadata ZIP, separate cover image and private working directory created by the uploader. The example below uses the specialised `upload_acquainted_windows.py` script; other manga must use their corresponding supported local source-preparation route. Run its **no-write** validation first:
 
-    py scripts\upload_acquainted_windows.py --folder "C:\Users\krish\Downloads\Acquainted" --dry-run
+    py scripts\upload_acquainted_windows.py --folder "C:\path\to\approved-manga" --dry-run
 
 When the original source ZIP was repaired by replacing an image with an intact source copy, use --refresh-source-images --dry-run once instead. When using a visually reviewed repaired candidate, use --use-reviewed-repairs --dry-run. Never approve an image with missing grey/blank artwork.
 
 This builds the existing verified local candidate at:
 
-    C:\Users\krish\Downloads\Acquainted\.acquainted-private-import\bundle
-    C:\Users\krish\Downloads\Acquainted\.acquainted-private-import\metadata\candidates.json
-    C:\Users\krish\Downloads\Acquainted\.acquainted-private-import\metadata\covers\...
+    C:\path\to\approved-manga\.acquainted-private-import\bundle
+    C:\path\to\approved-manga\.acquainted-private-import\metadata\candidates.json
+    C:\path\to\approved-manga\.acquainted-private-import\metadata\covers\...
 
 ## Securely stage the verified source once
 
 Run:
 
-    py scripts\stage_manga_for_github.py --work-dir "C:\Users\krish\Downloads\Acquainted\.acquainted-private-import"
+    py scripts\stage_manga_for_github.py --work-dir "C:\path\to\approved-manga\.acquainted-private-import"
 
 This requires your scoped HF token, from the current HF_TOKEN environment variable or a hidden prompt. It validates the complete local bundle and source metadata, creates an immutable checksum-pinned ZIP and uploads only to these private staging paths:
 
